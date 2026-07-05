@@ -79,7 +79,7 @@ Every incident requires real directory work, performed in **either** tool:
 3. Replicate each Active Directory objective in a live lab (VirtualBox +
    Windows Server 2022 + Windows 10 client) against a real domain controller.
 
-_(Link your AD home-lab repo here once it's up.)_
+
 
 ## About this project
 
