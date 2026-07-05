@@ -84,9 +84,7 @@ _(Link your AD home-lab repo here once it's up.)_
 
 This is a personal study and practice tool. The scenarios, ticket content, and
 training objectives were designed by me to mirror real Tier 1 responsibilities;
-the simulator was assembled with AI assistance as a learning aid. "Maplecore
-Financial" and all users, tickets, and data are fictional. Not affiliated with
-ServiceNow or Microsoft.
+The simulator was assembled with AI assistance as a learning aid.The value of this project is the competency it builds and demonstrates: incident and SLA management, identity verification, least-privilege access, and the full Active Directory user lifecycle (onboarding, transfers, offboarding, lockouts) performed in both Active Directory Users and Computers and PowerShell.  "Maplecore Financial" and all users, tickets, and data are fictional. Not affiliated with ServiceNow or Microsoft.
 
 ## License
 
