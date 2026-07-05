@@ -1,4 +1,5 @@
 # IT Service Desk Simulator — ServiceNow + Active Directory Lab
+![Shift report — 9/9 incidents resolved, 100% first-try accuracy, 0 security violations](05-shift-report.png)
 
 An interactive, browser-based training environment that recreates a Tier 1 IT
 Service Desk shift at a fictional enterprise ("Maplecore Financial"). It pairs a
