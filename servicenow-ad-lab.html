@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maplecore Financial | ServiceNow + AD Lab — Incident Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --hdr:#293E40; --nav:#303A46; --navhov:#3D4B5C; --navtxt:#CFD4D8;
+  --bg:#F5F6F7; --surface:#FFFFFF; --line:#CBD0D4; --line2:#E0E3E6;
+  --ink:#2E3436; --muted:#6B7478; --link:#1F6FB5; --btn:#278EFC;
+  --p1:#C3212B; --p2:#DB6A00; --p3:#C8A200; --p4:#5B7282;
+  --ok:#2E7D32; --okbg:#EAF4EB; --wnbg:#FFF8E1; --wnline:#E6D9A8;
+  --err:#FBEAEA; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Source Sans 3',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:13.5px;line-height:1.5}
+button{font-family:inherit;cursor:pointer}
+a{color:var(--link);text-decoration:none}
+
+/* ── SN banner ── */
+.banner{background:var(--hdr);color:#fff;height:48px;display:flex;align-items:center;padding:0 14px;gap:14px;position:sticky;top:0;z-index:100}
+.banner .brand{font-weight:700;font-size:14.5px;letter-spacing:.2px}
+.banner .brand small{opacity:.65;font-weight:400;margin-left:8px}
+.banner .search{flex:1;max-width:340px;margin-left:auto}
+.banner .search input{width:100%;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.25);border-radius:3px;color:#fff;padding:5px 10px;font-size:12.5px}
+.banner .search input::placeholder{color:rgba(255,255,255,.55)}
+.banner .user{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.banner .avatar{width:26px;height:26px;border-radius:50%;background:#5B8C5A;display:grid;place-items:center;font-size:11px;font-weight:700}
+
+/* ── Shell ── */
+.shell{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - 48px)}
+.navigator{background:var(--nav);color:var(--navtxt);overflow-y:auto}
+.navfilter{padding:10px}
+.navfilter input{width:100%;background:#252D37;border:1px solid #465061;border-radius:3px;color:#fff;padding:6px 9px;font-size:12px}
+.navsec{padding:6px 0}
+.navsec h4{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#8B96A5;padding:8px 14px 4px;font-weight:700}
+.navitem{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;color:var(--navtxt);text-align:left;padding:7px 14px 7px 22px;font-size:13px}
+.navitem:hover{background:var(--navhov);color:#fff}
+.navitem.active{background:#1F6FB5;color:#fff}
+.navitem .cnt{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.15);border-radius:8px;padding:0 7px}
+
+/* ── Content / list view ── */
+.content{overflow-x:auto}
+.listbar{background:var(--surface);border-bottom:1px solid var(--line);padding:9px 16px;display:flex;align-items:center;gap:12px}
+.listbar h1{font-size:15.5px;font-weight:700}
+.listbar .crumb{font-size:12px;color:var(--muted)}
+table.snlist{width:100%;border-collapse:collapse;background:var(--surface);font-size:12.5px}
+.snlist th{background:#E9ECEF;border:1px solid var(--line);padding:6px 10px;text-align:left;font-size:11.5px;font-weight:700;color:#4A545A;white-space:nowrap}
+.snlist td{border:1px solid var(--line2);padding:7px 10px;vertical-align:top}
+.snlist tr:hover td{background:#F0F6FC;cursor:pointer}
+.snlist .num{font-family:var(--mono);font-weight:700;color:var(--link);white-space:nowrap}
+.pchip{font-size:11px;font-weight:700;padding:1px 7px;border-radius:2px;color:#fff;white-space:nowrap}
+.pc1{background:var(--p1)} .pc2{background:var(--p2)} .pc3{background:var(--p3)} .pc4{background:var(--p4)}
+.state{font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:9px;white-space:nowrap}
+.stNew{background:#E3F0FA;color:#1F6FB5}.stIP{background:#FFF3D9;color:#9A6A00}.stRes{background:var(--okbg);color:var(--ok)}
+.slat{font-family:var(--mono);font-size:11.5px;font-weight:700}
+.slat.hot{color:var(--p1)}.slat.warm{color:var(--p2)}.slat.cool{color:var(--muted)}
+
+/* ── Form view ── */
+.formbar{background:var(--surface);border-bottom:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:48px;z-index:60}
+.formbar .back{background:none;border:none;color:var(--link);font-size:13px;padding:4px}
+.formbar .num{font-family:var(--mono);font-weight:700;font-size:14px}
+.formbar .short{font-weight:600;font-size:13.5px;color:#3C4650;max-width:46ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.formbar .spacer{flex:1}
+.snbtn{background:var(--btn);color:#fff;border:1px solid #1B72CE;border-radius:3px;padding:6px 16px;font-size:12.5px;font-weight:600}
+.snbtn:hover{background:#1B72CE}
+.snbtn.gray{background:#fff;color:#3C4650;border:1px solid var(--line)}
+.snbtn.green{background:#2E7D32;border-color:#256428}
+.snbtn:disabled{opacity:.45;cursor:not-allowed}
+.formwrap{padding:14px 16px 80px;max-width:1080px}
+.snform{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:16px 18px;margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 34px}
+.frow{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:10px;min-height:32px}
+.frow label{font-size:12px;color:#4A545A;text-align:right;font-weight:600}
+.fval{background:#F2F4F5;border:1px solid var(--line2);border-radius:3px;padding:5px 9px;font-size:12.5px;min-height:29px;display:flex;align-items:center;gap:6px}
+.fval.editable{background:#fff;border-color:#9AA5AC}
+.fval select{border:none;background:none;font-family:inherit;font-size:12.5px;width:100%;outline:none}
+.descbox{grid-column:1/-1;margin-top:6px}
+.descbox .frow{grid-template-columns:130px 1fr;align-items:start}
+.descbox .fval{display:block;padding:10px 12px;line-height:1.6}
+.quote{background:#F4F7FA;border-left:3px solid var(--line);padding:8px 12px;font-style:italic;color:#37424E;margin:7px 0;border-radius:0 4px 4px 0}
+
+/* ── Tabs & activity ── */
+.formtabs{display:flex;gap:2px;border-bottom:2px solid var(--line);margin-bottom:0}
+.ftab{background:none;border:none;padding:8px 16px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px}
+.ftab.active{color:var(--ink);border-bottom-color:var(--btn)}
+.tabpanel{background:var(--surface);border:1px solid var(--line);border-top:none;padding:16px 18px;margin-bottom:14px}
+.journal .entry{border-left:3px solid var(--line2);padding:8px 12px;margin-bottom:10px;border-radius:0 4px 4px 0;background:#FAFBFC}
+.journal .entry.wn{background:var(--wnbg);border-left-color:#D9B94C}
+.journal .entry.cmt{background:#EEF4FB;border-left-color:#7FB3E0}
+.journal .who{font-size:11.5px;font-weight:700;margin-bottom:2px}
+.journal .who span{font-weight:400;color:var(--muted);margin-left:8px;font-family:var(--mono);font-size:10.5px}
+.journal .tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:0 6px;border-radius:2px;margin-left:8px}
+.journal .tag.twn{background:#EAD97F;color:#5B4A00}
+.journal .tag.tcmt{background:#BBD8F2;color:#144B77}
+.journal pre{white-space:pre-wrap;font-family:inherit;font-size:12.5px;margin-top:2px}
+
+/* ── Decision points ── */
+.stepno{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--btn);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.q{font-size:14.5px;font-weight:700;margin-bottom:12px}
+.opt{display:block;width:100%;text-align:left;background:#F8FAFC;border:1.5px solid var(--line2);border-radius:4px;padding:10px 13px;margin-bottom:8px;font-size:13px;transition:all .12s}
+.opt:hover:not(:disabled){border-color:var(--btn);background:#F0F6FC}
+.opt:disabled{cursor:default}
+.opt .key{font-family:var(--mono);font-weight:700;color:var(--btn);margin-right:8px}
+.opt.right{border-color:var(--ok);background:var(--okbg)}
+.opt.wrong{border-color:var(--p1);background:var(--err)}
+.feedback{border-radius:4px;padding:12px 15px;margin:11px 0;font-size:13px;border:1px solid}
+.feedback.good{background:var(--okbg);border-color:#BCDECD}
+.feedback.bad{background:var(--wnbg);border-color:var(--wnline)}
+.fb-title{font-weight:700;margin-bottom:5px}
+.ivnote{margin-top:9px;padding-top:9px;border-top:1px dashed #C9B78C;font-size:12px;color:#5B4A1E}
+.ivnote b{color:#8A6D1B}
+.divider{border:none;border-top:1px solid var(--line2);margin:16px 0}
+
+/* ── Resolution ── */
+.resform .frow{grid-template-columns:150px 1fr}
+.resnote{background:var(--wnbg);border:1px solid var(--wnline);border-radius:4px;padding:12px 14px;margin-top:10px}
+.resnote h4{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#8A6D1B;margin-bottom:7px}
+.resnote pre{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px;line-height:1.7;color:#3D3623}
+
+/* ── KB / drills / report ── */
+.kbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:13px;padding:16px}
+.kbcard{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:16px}
+.kbcard .kbnum{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--link)}
+.kbcard h3{font-size:14.5px;margin:5px 0 9px}
+.kbcard ul{padding-left:18px;font-size:12.5px;color:#37424E}
+.kbcard li{margin-bottom:5px}
+.drillwrap{max-width:760px;padding:18px 16px 80px}
+.panelbox{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:16px 18px;margin-bottom:13px}
+.report{max-width:760px;margin:0 auto;padding:20px 16px}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:14px;text-align:center}
+.stat b{display:block;font-family:var(--mono);font-size:24px}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.hidden{display:none}
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .navigator{display:flex;overflow-x:auto;position:sticky;top:48px;z-index:90}
+  .navfilter,.navsec h4{display:none}
+  .navsec{display:flex}
+  .navitem{white-space:nowrap;padding:10px 12px}
+  .fgrid{grid-template-columns:1fr}
+  .frow{grid-template-columns:110px 1fr}
+  .formbar .short{display:none}
+}
+
+/* ── AD Lab objectives panel ── */
+.objpanel{background:#F2F7F3;border:1px solid #BCDECD;border-radius:4px;padding:13px 15px;margin:12px 0}
+.objpanel h4{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#256428;margin-bottom:9px}
+.obj{display:flex;gap:9px;align-items:flex-start;padding:5px 0;font-size:13px}
+.obj .box{width:17px;height:17px;border:2px solid #9AB5A0;border-radius:3px;flex-shrink:0;margin-top:1px;display:grid;place-items:center;font-size:12px;background:#fff}
+.obj.done .box{background:var(--ok);border-color:var(--ok);color:#fff}
+.obj.done{color:#256428}
+.obj.viol .box{background:var(--p1);border-color:var(--p1);color:#fff}
+.obj.viol{color:var(--p1);font-weight:600}
+.objpanel .toolbtns{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.violbanner{background:var(--err);border:1px solid #E0A3A3;color:#8E1B1B;border-radius:4px;padding:9px 13px;font-size:12.5px;font-weight:600;margin:8px 0}
+
+/* ── ADUC console ── */
+.aduc{display:grid;grid-template-columns:250px 1fr;min-height:520px;background:var(--surface);border:1px solid var(--line)}
+.aductree{border-right:1px solid var(--line);background:#FBFCFC;padding:8px 0;font-size:12.5px}
+.aductree .root{font-weight:700;padding:6px 12px;color:#3C4650}
+.treeitem{display:block;width:100%;text-align:left;background:none;border:none;padding:5px 12px 5px 28px;font-size:12.5px;color:var(--ink)}
+.treeitem:hover{background:#EAF1F7}
+.treeitem.active{background:#CFE3F5}
+.aducmain{padding:12px 14px;overflow-x:auto}
+.aducmain h3{font-size:13.5px;margin-bottom:8px;color:#3C4650}
+table.objlist{width:100%;border-collapse:collapse;font-size:12.5px}
+.objlist th{text-align:left;border-bottom:2px solid var(--line);padding:5px 8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.objlist td{border-bottom:1px solid var(--line2);padding:6px 8px}
+.objlist tr:hover td{background:#F0F6FC;cursor:pointer}
+.statusico{font-size:11px;font-weight:700;padding:1px 6px;border-radius:2px;margin-left:6px}
+.st-lock{background:#FBEAEA;color:var(--p1)} .st-dis{background:#EDEFF1;color:#5B7282} .st-exp{background:#FFF3D9;color:#9A6A00}
+.props{border-top:3px solid var(--btn);background:#FAFCFE;border:1px solid var(--line);border-radius:0 0 4px 4px;padding:14px 16px;margin-top:12px}
+.props h3{font-size:14.5px;margin-bottom:2px}
+.props .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-bottom:12px}
+.proptabs{display:flex;gap:2px;border-bottom:2px solid var(--line);margin-bottom:12px}
+.proptab{background:none;border:none;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px}
+.proptab.active{color:var(--ink);border-bottom-color:var(--btn)}
+.acctrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2);font-size:12.5px;flex-wrap:wrap}
+.acctrow b{min-width:230px}
+.minibtn{background:#fff;border:1px solid #9AA5AC;border-radius:3px;padding:4px 12px;font-size:12px;font-weight:600}
+.minibtn:hover{background:#EAF1F7;border-color:var(--btn)}
+.minibtn.danger{color:var(--p1);border-color:#D8A0A0}
+.minibtn:disabled{opacity:.4;cursor:not-allowed}
+.grouprow{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line2);font-size:12.5px}
+.addgrp{display:flex;gap:8px;margin-top:10px}
+.addgrp select,.addgrp input,.newuser input{border:1px solid #9AA5AC;border-radius:3px;padding:5px 9px;font-size:12.5px;font-family:inherit}
+.aduclog{background:#1E2530;color:#B9C4CE;font-family:var(--mono);font-size:11.5px;padding:10px 14px;border-radius:0 0 3px 3px;max-height:130px;overflow-y:auto;line-height:1.8}
+.aduclog .ok{color:#7FD79A}.aduclog .bad{color:#F08A8A}
+.newuser{display:grid;gap:9px;max-width:420px;margin-top:8px}
+.newuser label{font-size:12px;font-weight:600;color:#4A545A}
+.checkline{display:flex;gap:8px;align-items:center;font-size:12.5px}
+
+/* ── PowerShell terminal ── */
+.psterm{background:#012456;color:#EEEDF0;font-family:var(--mono);font-size:12.5px;min-height:520px;padding:14px 16px;border-radius:3px;line-height:1.7}
+.psterm .out{white-space:pre-wrap;word-break:break-word}
+.psterm .err{color:#F4A0A0}
+.psterm .okc{color:#8CE99A}
+.psterm .dim{color:#8FA3C0}
+.psline{display:flex;gap:0;align-items:baseline}
+.psline .prompt{color:#F9F1A5;white-space:nowrap}
+.psline input{flex:1;background:none;border:none;outline:none;color:#EEEDF0;font-family:var(--mono);font-size:12.5px}
+.toolhdr{background:var(--surface);border-bottom:1px solid var(--line);padding:9px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.toolhdr h1{font-size:15px}
+.toolhdr .crumb{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <div class="brand">now<small>Maplecore Financial — Service Operations</small></div>
+  <div class="search"><input placeholder="Search incidents, KB…" disabled></div>
+  <div class="user"><div class="avatar">VG</div><span>Vic G. · ITIL Service Desk</span></div>
+</div>
+
+<div class="shell">
+  <div class="navigator">
+    <div class="navfilter"><input placeholder="Filter navigator" disabled></div>
+    <div class="navsec"><h4>Incident</h4>
+      <button class="navitem active" data-view="mylist">Assigned to me <span class="cnt" id="cntMine">8</span></button>
+      <button class="navitem" data-view="resolved">Resolved <span class="cnt" id="cntRes">0</span></button>
+    </div>
+    <div class="navsec"><h4>Tools</h4>
+      <button class="navitem" data-view="aduc">🗂 ADUC — Users &amp; Computers</button>
+      <button class="navitem" data-view="ps">＞ PowerShell</button>
+    </div>
+    <div class="navsec"><h4>Knowledge</h4>
+      <button class="navitem" data-view="kb">Knowledge Base</button>
+    </div>
+    <div class="navsec"><h4>Training</h4>
+      <button class="navitem" data-view="drills">ServiceNow Drills <span class="cnt" id="cntDrill">8</span></button>
+      <button class="navitem" data-view="report">Shift Report</button>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+<script>
+
+/* ═════════ TICKET DATA ═════════ */
+const TICKETS=[
+{
+ id:"INC0010248",pri:"P1",slaMin:28,title:"Finance dept — shared drive (F:) inaccessible for all users",
+ caller:"Sandra Osei (Finance Manager)",loc:"HQ — 12th Floor",cat:"Network / File Services",group:"Service Desk",channel:"Phone",
+ desc:[`Sandra called at 7:58 AM. Month-end close is today.`,
+ `q|"Nobody in Finance can open the F: drive. All 14 of us get 'F:\\ is not accessible. Access is denied.' It worked fine yesterday. We CANNOT miss month-end."`,
+ `You quickly ping two other Finance users — same error. Users in Marketing can still reach their own mapped drives.`],
+ steps:[
+ {q:"Fourteen users in one department are down on a critical business day. What is your FIRST move?",
+  opts:["Remote into Sandra's PC and start troubleshooting her machine one-on-one",
+        "Recognize this as a potential major incident: confirm scope, log it as P1, and escalate to the infrastructure team per the escalation matrix while you gather details",
+        "Tell Sandra to reboot and call back if it persists",
+        "Re-map the F: drive manually on each of the 14 PCs"],
+  a:1,
+  good:"Exactly right. Multiple users + one department + business-critical deadline = major incident behavior, not desktop troubleshooting. Tier 1's job on a P1 is scope it, log it, escalate it fast, and keep communicating. Fixing PCs one by one wastes the SLA clock.",
+  bad:"On a P1, think scope before screwdriver. One user broken = troubleshoot the machine. A whole department broken = the problem is upstream (server, permissions, GPO, DFS) — confirm scope, log P1, and escalate to infrastructure per the matrix.",
+  iv:"Interviewers love 'a whole department can't access the shared drive — walk me through it.' The winning answer always starts with SCOPE: one user, one team, or everyone?"},
+ {q:"While infrastructure investigates, Sandra calls back twice in 10 minutes demanding an ETA. What do you do?",
+  opts:["Avoid her calls until the fix is in so you can focus",
+        "Promise it will be fixed within the hour to calm her down",
+        "Give a brief, honest status update ('Infrastructure has isolated it to a permissions change on the file server; next update in 20 minutes'), and log the communication in the ticket",
+        "Transfer her directly to the infrastructure engineer's cell"],
+  a:2,
+  good:"Perfect. Communication IS the job during a major incident. Honest status + a committed next-update time keeps users calm without promising an ETA you don't control. Logging it protects you and the team.",
+  bad:"Never promise ETAs you don't control, and never go dark. The pro move: short honest update, a committed next-update time, and log it. Users tolerate outages far better than silence.",
+  iv:"'How do you handle an angry user during an outage?' — Answer: empathize, give facts not guesses, commit to an update cadence, document."},
+ {q:"Root cause: last night a technician 'cleaned up' AD groups and removed FIN-Share-RW from the folder ACL. Access is restored. What should happen after resolution?",
+  opts:["Close the ticket — it works now, move on",
+        "Delete the technician's admin account",
+        "Resolution notes with root cause, then a problem record / post-incident review so a change-control gap gets fixed",
+        "Email all of Finance an apology from the CIO"],
+  a:2,
+  good:"That's ITIL thinking: the incident restores service; the PROBLEM process prevents recurrence. An unauthorized AD change causing a P1 screams for change management review. Interviewers notice when you separate incident vs problem management.",
+  bad:"Restoring service isn't the finish line on a P1. Incident management = restore service; problem management = stop it happening again. Document root cause and trigger a post-incident review — the real failure was an untracked AD change.",
+  iv:"Know the difference cold: Incident = unplanned interruption (fix fast). Problem = underlying cause (fix forever). Change = controlled modification."}],
+ resolution:`CAUSE: Security group FIN-Share-RW removed from NTFS ACL on \\\\MCFS01\\Finance during untracked AD cleanup.
+FIX: Group re-added to ACL by Infrastructure; access confirmed with 3 Finance users. Service restored 08:41.
+FOLLOW-UP: PRB0000312 opened — change control gap on AD group modifications. Post-incident review booked.`},
+
+{
+ id:"INC0010234",pri:"P2",slaMin:110,title:"User account keeps locking out — 'locked out again 5 minutes after unlock'",
+ caller:"Marcus Deleon (Sales)",loc:"HQ — 9th Floor",cat:"Active Directory / Account",group:"Service Desk",channel:"Portal",
+ desc:[`Marcus changed his password yesterday afternoon (expiry). This morning:`,
+ `q|"I'm locked out of everything. Your team unlocked me an hour ago and 5 minutes later I was locked out AGAIN. I haven't even typed my password wrong."`,
+ `Account status in ADUC: locked. badPwdCount is climbing even while Marcus isn't at his desk.`],
+ steps:[
+ {q:"Before touching anything in Active Directory, what do you do first?",
+  opts:["Unlock the account immediately — he's waiting",
+        "Verify the caller's identity per policy, then check the account's status and lockout details in AD",
+        "Reset his password to something new and read it to him over the portal chat",
+        "Tell him to wait 30 minutes for the lockout to expire on its own"],
+  a:1,
+  good:"Right — identity first, always, even on a portal ticket (verify against the profile / callback number). Then look before you act: ADUC shows locked status, bad password count, and lockout time, which tells you what you're dealing with.",
+  bad:"Careful — never take account actions before verifying identity, and never blind-unlock without looking. Check ADUC first: lockout status, badPwdCount, when it locked. Diagnose, then act.",
+  iv:"Almost every helpdesk interview: 'A user is locked out — what do you do?' Verify identity → check status in AD → unlock → find WHY."},
+ {q:"He gets re-locked within minutes even when he's away from his PC, right after a password change. Most likely cause?",
+  opts:["Someone is brute-forcing his account from outside",
+        "A stale credential: his OLD password is saved somewhere (phone email profile, mapped drive, Windows Credential Manager, a service or scheduled task) and keeps retrying",
+        "Domain controller replication is broken",
+        "His keyboard has a stuck key"],
+  a:1,
+  good:"This is THE classic. Password change + repeated auto-lockouts = a device or app still auto-authenticating with the old password. #1 suspect in the real world: the phone's saved email/Wi-Fi profile hammering the DC.",
+  bad:"The tell is in the pattern: it started right after a password change and re-locks with no typing. That's a stale saved credential — usually his phone's email or Wi-Fi profile, a mapped drive, Credential Manager, or a scheduled task retrying the OLD password.",
+  iv:"Say the phrase 'stale cached credentials after a password change' in an interview and watch the interviewer nod."},
+ {q:"You want to prove WHERE the bad attempts come from. Best method?",
+  opts:["Ask Marcus to guess which device it is",
+        "Check the Security event log on the PDC emulator for Event ID 4740 (or run LockoutStatus.exe) to find the source computer/device",
+        "Disable his account so the lockouts stop",
+        "Reimage his laptop"],
+  a:1,
+  good:"Textbook. Event 4740 on the PDC emulator names the caller computer for each lockout; Microsoft's LockoutStatus.exe / the Lockout and Management Tools do the same hunt. You find it's his iPhone's mail profile → update the saved password → lockouts stop.",
+  bad:"There's a precise tool for this: lockout events (ID 4740) land in the Security log of the PDC emulator DC and include the source computer. LockoutStatus.exe automates the check. It turns out to be his iPhone mail profile with the old password.",
+  iv:"Event ID 4740 = account locked out. Also handy: 4625 = failed logon. Naming event IDs signals real hands-on experience."}],
+ resolution:`CAUSE: iPhone Exchange profile retrying expired password after user's password change → repeated lockouts (Event 4740, source: MARCUS-IPHONE).
+FIX: Verified identity per KB0001. Unlocked account, user updated saved password on phone + remembered credentials in Credential Manager. Monitored 30 min — badPwdCount stable at 0.
+USER EDUCATION: Advised updating all saved-password locations immediately after future password changes.`},
+
+{
+ id:"INC0010263",pri:"P2",slaMin:150,title:"URGENT — Employee terminated effective 12:00 PM today, revoke access",
+ caller:"HR Service Delivery (Priya Nair)",loc:"HR — 6th Floor",cat:"Active Directory / Offboarding",group:"Service Desk",channel:"Email",
+ desc:[`Email from HR, flagged confidential:`,
+ `q|"Derek Malone (Logistics) is being terminated today at 12:00 PM. Please revoke ALL access effective exactly at that time — not before, not after. His manager also asks for access to Derek's mailbox and files afterward."`],
+ steps:[
+ {q:"At 12:00 PM, what is the correct action on Derek's AD account?",
+  opts:["Delete the account so access is gone permanently",
+        "Disable the account, reset the password, and revoke active sessions/tokens — but do NOT delete",
+        "Just remove him from all security groups and leave the account enabled",
+        "Set his password to expire next week"],
+  a:1,
+  good:"Correct. Disable, never delete on day one. Deleting destroys the SID, group memberships, mailbox links, and file ownership — a legal/audit nightmare. Disable + password reset + session revocation kills access instantly while preserving everything for retention.",
+  bad:"Deleting is the classic rookie mistake — it destroys the SID, mailbox link, and audit trail, and it's nearly irreversible. The standard: DISABLE the account, reset the password, revoke sessions (VPN, M365, badge). Deletion happens later per retention policy (often 30–90 days).",
+  iv:"'Walk me through offboarding a terminated employee' is a top-5 interview question. Key words: disable not delete, exact timing, revoke sessions, retention policy."},
+ {q:"Derek's manager emails you directly at 12:30: 'Give me full access to his mailbox now, I need his client emails.' You should:",
+  opts:["Grant it — he's the manager, it's his team's data",
+        "Refuse permanently; nobody may ever access another user's mailbox",
+        "Verify authorization first: confirm the request is approved through HR/security policy (ticket + documented approval), then grant scoped access",
+        "Forward Derek's inbox contents to the manager manually"],
+  a:2,
+  good:"That's the mature answer. The request is probably legitimate — but access to a person's mailbox is a privacy and legal event. You need documented approval per policy (HR/Legal sign-off in the ticket) before delegating access. Then it's a two-minute Exchange task.",
+  bad:"Manager title ≠ authorization. Mailbox access touches privacy law (PIPEDA in Ontario) and legal hold. Right move: not 'no' — it's 'yes, once HR/Legal approval is documented in the ticket.' Then grant scoped delegate access.",
+  iv:"Interviewers probe whether you'll bypass process under pressure from authority. The answer pattern: stay helpful, require documented authorization, log everything."}],
+ resolution:`ACTION (12:00 PM sharp): Account MCORP\\dmalone disabled, password reset, AD/M365 sessions revoked, VPN cert revoked, badge deactivated (Facilities looped in). Account moved to OU=Disabled-Retention. Group memberships exported to ticket for audit.
+MAILBOX: Manager access granted 14:05 AFTER HR approval attached (REQ0004481). Mailbox converted to shared, litigation hold verified.
+NOTE: Account deletion scheduled per 90-day retention policy.`},
+
+{
+ id:"INC0010270",pri:"P2",slaMin:190,title:"Remote worker on VPN — 'password expired' and now nothing works",
+ caller:"Alina Petrova (Underwriting)",loc:"Remote — Mississauga",cat:"Remote Access / AD",group:"Service Desk",channel:"Phone",
+ desc:[`q|"Windows told me my password expires soon, then this morning I can't log into email or Teams. I work from home full-time. My Windows login still works with my OLD password which makes no sense."`],
+ steps:[
+ {q:"Why does her OLD password still open Windows at home while everything else fails?",
+  opts:["Her laptop is infected with malware",
+        "Her laptop is logging her in with CACHED domain credentials — it hasn't talked to a domain controller since the password expired, so it doesn't know about the change",
+        "AD deleted her new password",
+        "Teams and email require a separate password from Windows"],
+  a:1,
+  good:"Exactly — cached credentials are the key concept for remote-worker support. Off the corporate network, Windows validates against the last cached credential. Cloud services check the real AD/Entra password, so they break first. This mismatch confuses users constantly.",
+  bad:"Core remote-work concept: when a domain-joined laptop can't reach a DC, Windows logs you in with CACHED credentials — the last password it saw. Meanwhile M365 checks the real directory. So old password works locally, everything else fails.",
+  iv:"'A remote user changed their password and now their laptop login is out of sync — explain why.' Cached credentials is the answer they're fishing for."},
+ {q:"Best way to get her fully back in sync while she's remote?",
+  opts:["Tell her to drive to the office and log in there",
+        "Have her connect to VPN (or you reset the password), then lock/unlock the workstation (Ctrl+Alt+Del) while on VPN so Windows contacts a DC and updates the cached credential",
+        "Reimage the laptop",
+        "Create her a brand new AD account"],
+  a:1,
+  good:"That's the field-tested fix: get a line of sight to a DC over VPN, then a lock/unlock (or log off/on) forces Kerberos to authenticate against AD and refresh the cache. If your org has self-service password reset (SSPR), even better — mention it.",
+  bad:"No road trip needed. Fix: connect VPN → lock/unlock the workstation (Ctrl+Alt+Del) while connected. That forces Windows to authenticate against a real DC and refresh the cached credential. Reset the password first if needed, with identity verified.",
+  iv:"Bonus points in interviews for mentioning SSPR (self-service password reset) and MFA as the modern reducers of this whole ticket category."}],
+ resolution:`CAUSE: Password expired while device was off-network; laptop authenticating via cached credentials; Entra-connected services (Teams/Exchange) rejecting expired password.
+FIX: Identity verified per KB0001. Password reset; user connected via VPN, performed lock/unlock to refresh cached credentials against DC. All services confirmed working.
+RECOMMENDATION: Enrolled user in SSPR to self-serve future expiries.`},
+
+{
+ id:"INC0010266",pri:"P2",slaMin:230,title:"Transferred to new department — can't open the underwriting application",
+ caller:"Jerome Bakker (moved Ops → Underwriting)",loc:"HQ — 10th Floor",cat:"Access Management",group:"Service Desk",channel:"Portal",
+ desc:[`q|"I transferred to Underwriting on Monday. I can log into Windows fine but the UW-Core application says 'You are not authorized to access this resource.' My teammates all have it."`],
+ steps:[
+ {q:"Most likely cause of 'not authorized' after a department transfer?",
+  opts:["The application server is down",
+        "His AD account was never added to the security group that grants UW-Core access (and may still hold old Ops groups)",
+        "His Windows license expired",
+        "He needs a new computer"],
+  a:1,
+  good:"Right — app access in enterprises is almost always granted through AD security group membership. A transfer means groups must change. Compare his memberships to a working teammate's in ADUC (Member Of tab) to confirm the gap.",
+  bad:"When ONE user can't access an app that teammates can, and they just changed roles, think group membership. Enterprise apps authorize via AD security groups; a transfer that skipped the access-change request leaves him in his old groups. Compare his 'Member Of' tab to a teammate's.",
+  iv:"'A user can log in but can't access an application — steps?' Scope it (one user?), compare against a working user, check group membership."},
+ {q:"You add him to SG-UW-Core-Users, he tries immediately — still blocked. Why, and what do you tell him?",
+  opts:["The group must be broken — escalate to Tier 3",
+        "His Kerberos token was built at logon and doesn't include the new group yet — have him log off and back on (or lock/unlock) to get a fresh token",
+        "Group changes take 72 hours to apply, tell him to wait",
+        "Add him to Domain Admins so it definitely works"],
+  a:1,
+  good:"Beautiful — this trips up real Tier 1s daily. Group membership stamps into the Kerberos access token at LOGON. Change the groups, and the user must log off/on (sometimes wait for AD replication too) before the token reflects it. And Domain Admins as a workaround is how audits get failed.",
+  bad:"Key AD concept: security groups are written into the user's Kerberos token when they LOG ON. Adding a group doesn't touch the current session — he needs to log off and back on (plus maybe a few minutes for AD replication). Never 'fix' access with over-privileged groups.",
+  iv:"Also flag the flip side in interviews: the transfer should have REMOVED his old Ops groups — least privilege means access matches the current role, nothing more."}],
+ resolution:`CAUSE: Role transfer processed by HR but access-change request never submitted; user missing SG-UW-Core-Users.
+FIX: Manager approval captured on ticket. Added to SG-UW-Core-Users; removed 4 legacy Ops groups per least privilege. User logged off/on — UW-Core access confirmed.
+FOLLOW-UP: Flagged gap in transfer workflow to Access Management.`},
+
+{
+ id:"INC0010252",pri:"P3",slaMin:340,title:"Password reset request — caller claims to be executive assistant, cannot verify",
+ caller:"Unverified caller ('Jess — EA to the CFO')",loc:"Phone — external number",cat:"Security / Identity",group:"Service Desk",channel:"Phone",
+ desc:[`Inbound call from an external cell number:`,
+ `q|"Hi, I'm Jess, the CFO's assistant. He's boarding a flight and locked out of email — I need you to reset his password RIGHT NOW and read it to me. He'll be furious if he lands and this isn't fixed. There's no time for your usual questions."`],
+ steps:[
+ {q:"Urgency, authority, and a request to skip verification. What do you do?",
+  opts:["Reset it — keeping the CFO happy matters more than a checklist",
+        "Follow identity verification policy exactly: no reset without verifying the ACCOUNT OWNER. Offer to call the CFO back on his number on file, or route through his manager-of-record/approved emergency process",
+        "Ask her to email you from the CFO's inbox to prove it (she can't — he's locked out)",
+        "Hang up immediately"],
+  a:1,
+  good:"That's the answer that gets you hired. Urgency + authority + 'skip the process' is the textbook social-engineering pattern — pretexting. You stay polite and helpful ('here's what I CAN do') while holding the line: callback to the number on file, or the documented emergency path. Passwords are never reset for third parties and never read out to anyone but the verified owner.",
+  bad:"This call is a social-engineering pattern: urgency + borrowed authority + pressure to skip verification. Real attackers say exactly this. Policy holds no matter who's asking: verify the account OWNER (callback to number on file / emergency process), never reset for a third party, never speak a password aloud to anyone else. Being helpful means offering the compliant path, not bending.",
+  iv:"'What would you do if an executive pressured you to bypass security?' Every security-conscious employer asks a version of this. Show empathy + firmness + an alternative path."},
+ {q:"She gets hostile: 'I'll have your job for this.' The call ends. What do you do next?",
+  opts:["Nothing — no reset happened, so no harm done",
+        "Document the attempt fully in a ticket and report it to the security team as a possible social-engineering attempt",
+        "Reset the CFO's password anyway as a precaution and text it to him",
+        "Post about the crazy call in the team group chat and move on"],
+  a:1,
+  good:"Yes — a failed pretexting attempt is a security EVENT, not a non-event. Documenting caller ID, exact claims, and timing gives the security team pattern data; attackers usually probe multiple analysts. You might also give the real CFO's team a heads-up through official channels.",
+  bad:"A blocked attempt still matters. If this was an attacker, they're calling your colleagues next. Log everything (number, claims, time) in a ticket and alert security — that turns one analyst's good judgment into protection for the whole desk.",
+  iv:"Mentioning that you'd REPORT the attempt — not just refuse it — separates good answers from great ones."}],
+ resolution:`SUMMARY: Inbound call requesting third-party password reset for CFO account with refusal of identity verification. Request DENIED per KB0001. Offered compliant alternatives (callback to number on file; documented emergency access process) — caller declined and disconnected.
+SECURITY: Reported to SecOps as suspected pretexting (SIR0000097). Caller ID, claims, and timeline attached. CFO's office notified via verified channel — confirmed no such request was made.`},
+
+{
+ id:"INC0010241",pri:"P3",slaMin:420,title:"New hire onboarding — Underwriting Analyst starts Monday",
+ caller:"HR Service Delivery (auto-generated)",loc:"HQ — 10th Floor",cat:"Active Directory / Onboarding",group:"Service Desk",channel:"Portal",
+ desc:[`Standard onboarding request:`,
+ `q|"New hire: Tunde Adeyemi, Underwriting Analyst, reports to K. Ferreira, starts Monday. Please provision AD account, email, and standard department access."`],
+ steps:[
+ {q:"How should you provision Tunde's access in AD?",
+  opts:["Copy the account of whoever in Underwriting has the MOST access, so he's never blocked",
+        "Provision from the documented role template / role-based groups for 'Underwriting Analyst' — exactly the access the role requires, nothing more (least privilege)",
+        "Give him Domain Users only; he can request everything else ticket by ticket",
+        "Add him to Domain Admins temporarily for the first week"],
+  a:1,
+  good:"Least privilege, role-based — that's the phrase. Copying a random veteran's account is 'permission creep by inheritance': you clone years of accumulated one-off access. A role template (or a documented copy-from designated template account) gives exactly what an Underwriting Analyst needs. And Domain Admins for a new hire is an instant audit finding.",
+  bad:"The trap here is copying the most-privileged colleague — that clones years of permission creep onto day one. The standard is ROLE-BASED provisioning: a documented template for 'Underwriting Analyst' granting exactly what the role needs (least privilege). Extra access gets requested and approved individually.",
+  iv:"Least privilege comes up in EVERY IT interview with a security angle — Security+ paid off here. Use the exact phrase."},
+ {q:"And the initial password — best practice?",
+  opts:["Set it to Welcome2026! for all new hires so it's easy to remember",
+        "Generate a unique temporary password, deliver it through a secure agreed channel (not plain email to a personal inbox with the username), and set 'User must change password at next logon'",
+        "Email the password to his personal Gmail along with his username",
+        "Let his manager pick the password and share it verbally"],
+  a:1,
+  good:"All three parts matter: unique (shared 'Welcome' passwords are the first thing attackers try), secure delivery (never username+password in the same plain email), and force-change at first logon so only Tunde ever knows the real password. MFA enrollment on day one seals it.",
+  bad:"Three rules: unique temp password (predictable new-hire passwords are an attacker favorite), secure delivery split from the username (never both in one plain email), and 'User must change password at next logon' checked so only Tunde knows his real password. Then MFA enrollment day one.",
+  iv:"'Walk me through onboarding a new user' — structure your answer: account from role template → groups per least privilege → mailbox/licenses → secure temp password + change at first logon → MFA → document in the ticket."}],
+ resolution:`PROVISIONED: MCORP\\tadeyemi created from UW-Analyst role template in OU=Underwriting. Groups: SG-UW-Core-Users, SG-UW-FileShare-RW, SG-AllStaff (per role matrix — no extras).
+MAILBOX/LICENSE: M365 E3 assigned; mailbox live.
+CREDENTIALS: Unique temp password delivered to hiring manager via secure channel, separate from username. 'Change at next logon' set. MFA enrollment scheduled for day-one orientation.
+Ticket linked to onboarding checklist KB0004.`},
+
+{
+ id:"INC0010257",pri:"P4",slaMin:840,title:"Printer on 9th floor 'offline' — user cannot print boarding documents",
+ caller:"Wei Chen (Sales)",loc:"HQ — 9th Floor",cat:"Hardware / Printing",group:"Service Desk",channel:"Portal",
+ desc:[`q|"The big printer by the kitchen shows Offline on my computer. I've clicked print like ten times. Nothing comes out."`],
+ steps:[
+ {q:"Your FIRST question back to Wei should be:",
+  opts:["'What color is the printer?'",
+        "'Is it offline just for you, or is anyone else nearby able to print to it?' — establish scope, and check the printer physically has power/network",
+        "'Have you tried buying a personal printer?'",
+        "'Can you reinstall Windows and try again?'"],
+  a:1,
+  good:"Scope first, every single ticket — it's the habit that makes everything downstream faster. One user offline = local issue (spooler, driver, port). Everyone offline = the device or network. A 30-second walk-by check (power, panel errors, network light) beats an hour of guessing.",
+  bad:"Same discipline as the P1: SCOPE first. One user can't print = their machine (spooler/driver/port mapping). Nobody can print = the device or its network drop. Asking one smart question routes the whole ticket.",
+  iv:"Interviewers use the humble printer question to test your troubleshooting METHOD, not printer trivia. Narrate: scope → physical layer → software layer."},
+ {q:"Only Wei is affected; the printer is online for others. His print queue shows 10 stuck jobs and the port is correct. Classic next fix?",
+  opts:["Clear the stuck queue and restart the Print Spooler service on his PC, then send a test page",
+        "Replace the printer's toner",
+        "Assign him a different desk",
+        "Escalate to the network team"],
+  a:0,
+  good:"Yes — the stuck-spooler two-step: clear the jammed jobs, restart the Print Spooler service (services.msc or 'net stop spooler / net start spooler'), test page. If it recurs, the driver is next on the list. You resolved it in four minutes — that's what P4 volume work looks like.",
+  bad:"With scope = one user and jobs jammed in the queue, the Print Spooler service on HIS machine is the prime suspect: clear the queue, restart the spooler (services.msc), send a test page. Toner and the network aren't in play — others print fine.",
+  iv:"Cite the CompTIA A+ methodology if asked: identify the problem → establish a theory → test → plan and implement → verify → document. It maps exactly onto tickets like this."}],
+ resolution:`CAUSE: Hung Print Spooler on user's workstation; 10 stalled jobs blocking the queue.
+FIX: Cleared queue, restarted Print Spooler service, test page OK. User confirmed documents printing.
+NOTE: Second spooler incident on this device this month — will monitor; driver refresh queued if it recurs.`},
+
+{
+ id:"INC0010219",pri:"P3",slaMin:520,title:"Manager requests: 'add my summer intern to the same groups as me'",
+ caller:"Robert Vance (Marketing Manager)",loc:"HQ — 7th Floor",cat:"Access Management",group:"Service Desk",channel:"Email",
+ desc:[`q|"My intern Maya starts tomorrow. Easiest thing: just mirror my account — add her to every group I'm in so she can help with everything. I approve it, obviously."`],
+ steps:[
+ {q:"A manager is explicitly approving cloning HIS access to an intern. You should:",
+  opts:["Do it — a manager's approval is all the authorization you need",
+        "Explain you can't mirror a manager's access to an intern (least privilege), and offer the compliant path: identify what Maya actually needs to DO, grant those specific groups via the standard access request with approvals",
+        "Add her to half his groups as a compromise",
+        "Ignore the email — interns aren't your problem"],
+  a:1,
+  good:"Exactly the right posture: helpful, not obstructive. A manager can approve access to resources HE owns — he can't approve an intern inheriting manager-level access to budgets, HR views, and admin shares. 'Tell me what Maya needs to do and I'll get her exactly that access today' solves his real problem AND passes the audit.",
+  bad:"Manager approval doesn't override least privilege — he can approve access to things he owns, not a wholesale clone of manager-level access (budget shares, HR views, approvals) onto a temp. The winning move keeps him happy: 'What does Maya need to do? I'll grant exactly those groups today through the standard request.'",
+  iv:"This is the 'pushing back on authority, diplomatically' question in ticket form. Employers want people who protect the environment without creating enemies."},
+ {q:"Maya is a 3-month intern. What extra AD step is best practice for her account?",
+  opts:["Nothing special — treat it like any permanent account",
+        "Set an account EXPIRATION date in AD matching her end date, so access shuts off automatically even if offboarding is missed",
+        "Give her a password that never expires so she isn't interrupted",
+        "Put her account in the Domain Admins OU for visibility"],
+  a:1,
+  good:"That's the pro detail: ADUC → Account tab → 'Account expires' set to her last day. Orphaned contractor/intern accounts are one of the most common audit findings and breach vectors in real companies — expiration dates make the failure mode safe.",
+  bad:"For any temporary worker, set the ACCOUNT EXPIRATION date (ADUC → Account tab) to their end date. If offboarding gets missed — and in real companies it does — the account dies on schedule anyway. Orphaned temp accounts are a classic breach vector.",
+  iv:"Dropping 'I always set account expiration on contractor accounts' in an interview signals you've thought about the whole identity lifecycle, not just day one."}],
+ resolution:`OUTCOME: Mirror request declined per least-privilege policy (explained to requester with alternative offered — well received).
+PROVISIONED: MCORP\\mrivera-i created from Marketing-Intern template. Groups: SG-MKT-Team, SG-MKT-Assets-RO (read-only) per manager's stated task list. Account expiration set 2026-09-04 (internship end). MFA enrolled.
+Requester confirmed intern has everything needed for role.`}
+];
+
+/* ═════════ KNOWLEDGE BASE ═════════ */
+const KB=[
+{n:"KB0001",t:"Identity Verification Policy",pts:["Verify the ACCOUNT OWNER before any password reset, unlock, or account change — no exceptions for urgency or seniority.","Approved methods: callback to number on file, manager-of-record confirmation, or badge check in person.","Never reset a password for a third party. Never speak or email a password to anyone but the verified owner.","Refused verification + pressure = document it and report to Security."]},
+{n:"KB0002",t:"Account Lockout Runbook",pts:["Verify identity → check status in ADUC (locked? badPwdCount? lockout time).","Unlock; if it re-locks, hunt the source: Event ID 4740 on the PDC emulator, or LockoutStatus.exe.","After a password change, check stale credentials: phone mail/Wi-Fi profiles, mapped drives, Credential Manager, services, scheduled tasks.","Remote users: reset over VPN, then lock/unlock to refresh cached credentials."]},
+{n:"KB0003",t:"Priority & Escalation Matrix",pts:["P1: whole department/site or business-critical service down — escalate to Infrastructure immediately, updates every 20–30 min.","P2: single user fully unable to work, or security-sensitive (terminations). Respond < 2 hrs.","P3: degraded work, workaround exists, provisioning. Respond same business day.","P4: minor/single-device annoyances. Respond < 24 hrs.","Incident = restore service. Problem = kill the root cause. Change = controlled modification."]},
+{n:"KB0004",t:"Onboarding / Offboarding Checklist",pts:["Onboard: account from ROLE TEMPLATE (least privilege) → groups per role matrix → mailbox/license → unique temp password, secure delivery, change-at-first-logon → MFA day one.","Temps/interns/contractors: ALWAYS set account expiration date.","Offboard: DISABLE (never delete day one), reset password, revoke sessions/VPN/badge at the exact effective time.","Mailbox/file access for managers requires documented HR/Legal approval on the ticket. Deletion later, per retention (30–90 days)."]}
+];
+</script>
+<script>
+const META={
+ INC0010248:{imp:"1 - High",urg:"1 - High",sub:"File Share / DFS",ci:"MCFS01 (File Server)"},
+ INC0010234:{imp:"2 - Medium",urg:"1 - High",sub:"Account Lockout",ci:"Active Directory"},
+ INC0010263:{imp:"2 - Medium",urg:"1 - High",sub:"Offboarding / Access Revocation",ci:"Active Directory"},
+ INC0010270:{imp:"2 - Medium",urg:"2 - Medium",sub:"VPN / Cached Credentials",ci:"VPN-GW01"},
+ INC0010266:{imp:"2 - Medium",urg:"2 - Medium",sub:"Group Membership",ci:"UW-Core Application"},
+ INC0010252:{imp:"2 - Medium",urg:"3 - Low",sub:"Identity Verification",ci:"Active Directory"},
+ INC0010241:{imp:"3 - Low",urg:"3 - Low",sub:"Onboarding / Provisioning",ci:"Active Directory"},
+ INC0010257:{imp:"3 - Low",urg:"3 - Low",sub:"Printer",ci:"PRN-09-KITCHEN"},
+ INC0010219:{imp:"3 - Low",urg:"3 - Low",sub:"Access Request",ci:"Active Directory"}
+};
+const PRILABEL={P1:"1 - Critical",P2:"2 - High",P3:"3 - Moderate",P4:"4 - Low"};
+const PRIORD={P1:1,P2:2,P3:3,P4:4};
+const RESCODES=["-- None --","Solved (Permanently)","Solved (Work Around)","Solved Remotely (Permanently)","Not Solved (Not Reproducible)","Closed/Resolved by Caller"];
+
+const DRILLS=[
+{q:"In a ServiceNow incident, what's the difference between 'Work notes' and 'Additional comments'?",
+ opts:["They're identical — two names for the same field",
+       "Work notes are INTERNAL (visible to IT/fulfillers only); Additional comments are CUSTOMER-VISIBLE and usually email the caller",
+       "Work notes are for managers only; comments are for technicians",
+       "Additional comments are deleted when the ticket closes"],
+ a:1,good:"Exactly — and mixing them up is the classic new-analyst mistake. Vent about a tricky user in Additional comments and the user reads it in their inbox. Rule of thumb: diagnosis and internal detail → work notes (yellow); status updates written for the caller → additional comments.",
+ bad:"This one matters on day one: Work notes (the yellow field) are internal — only fulfillers see them. Additional comments go to the CALLER, often as an email. Put your diagnosis in work notes; put polite status updates in comments. Getting these backwards is how analysts accidentally send internal remarks to users.",
+ iv:"Interviewers who use ServiceNow almost always ask this. Answer it crisply and you sound like you've lived in the tool."},
+{q:"A user submits a ticket: 'Please install Visio on my laptop.' In proper ITSM terms this should be a…",
+ opts:["Incident — something is wrong with their laptop",
+       "Problem — Visio is missing",
+       "Service REQUEST — nothing is broken; they want something new. It belongs in the Service Catalog with an approval flow",
+       "Change request — installing software changes the laptop"],
+ a:2,good:"Right. Incident = unplanned interruption or degradation ('it's broken'). Request = 'I want something' — fulfilled through the Service Catalog, often with manager approval and a different SLA. Desks that log everything as incidents wreck their metrics.",
+ bad:"Key ITIL distinction: an INCIDENT is something broken or degraded. Wanting new software is a SERVICE REQUEST — it flows through the Service Catalog (REQ/RITM records in ServiceNow) with approvals. Interviewers use exactly this Visio example.",
+ iv:"'What's the difference between an incident and a service request?' — top-10 ITSM interview question. Have the one-liner ready: broken vs wanted."},
+{q:"In ServiceNow, how does an incident's Priority get set?",
+ opts:["The analyst picks whatever priority feels right",
+       "The caller chooses it when submitting",
+       "It's calculated automatically from IMPACT (how many/how big) × URGENCY (how time-sensitive) via the priority matrix — you set those two, the platform derives priority",
+       "It's random until a manager sets it"],
+ a:2,good:"Correct — Priority is a derived field. Impact (1 dept? whole company?) × Urgency (can work continue?) = Priority via the lookup matrix. That's why your P1 shared-drive ticket was P1: high impact × high urgency. Callers ALWAYS say it's urgent; the matrix keeps it honest.",
+ bad:"In ServiceNow, Priority is read-only math: IMPACT × URGENCY through the priority lookup matrix. The analyst assesses impact (scope of damage) and urgency (time sensitivity); the platform derives P1–P4. This protects the queue from 'everything is urgent.'",
+ iv:"Saying 'priority is derived from impact times urgency' verbatim is a strong signal you know ServiceNow, not just the concept."},
+{q:"You've called and emailed a user three times over two days about their open incident — no response. Best practice in ServiceNow?",
+ opts:["Close the ticket immediately — they clearly don't care",
+       "Keep it in 'In Progress' forever so the SLA keeps running",
+       "Set State to 'On Hold — Awaiting Caller', with the three contact attempts documented in work notes; many desks auto-close after N days of no response (with warning to the user)",
+       "Reassign it to another analyst"],
+ a:2,good:"That's the standard: On Hold — Awaiting Caller pauses the resolution SLA fairly, your documented attempts justify it, and the auto-close policy (usually 3–5 business days with notification) keeps the queue clean without burning anyone.",
+ bad:"The clean pattern: document every contact attempt in work notes, then State → 'On Hold — Awaiting Caller' (this typically PAUSES the SLA clock). Most desks then auto-close after a set number of days with a warning comment to the user. Never just close silently, and never let it rot in In Progress.",
+ iv:"'What do you do when a user won't respond?' — they're testing process discipline + documentation habits."},
+{q:"Your incident's resolution SLA is about to breach and you're stuck. What's the right move?",
+ opts:["Quietly mark it Resolved to stop the timer, reopen later",
+       "Escalate BEFORE the breach: update work notes with everything tried, flag your lead / reassign to the right group with full context, and update the caller",
+       "Delete the SLA record",
+       "Ignore it — SLAs are just suggestions"],
+ a:1,good:"Right — SLAs exist to force timely escalation, not to be gamed. A pre-breach escalation with rich work notes is a GOOD look; a fake-resolve to stop the clock is a fireable one, and ServiceNow audit logs make it visible to everyone.",
+ bad:"Never game the timer — fake-resolving to stop an SLA is audit-visible in ServiceNow and treated as integrity failure. The professional move: escalate BEFORE breach with complete work notes (what you tried, what you found), route to the right group, and keep the caller updated.",
+ iv:"'Tell me about a time you couldn't solve something' — the winning shape is always: tried X/Y, documented, escalated early with context."},
+{q:"What's the difference between 'Assignment group' and 'Assigned to' — and what must you do when reassigning a ticket to another group?",
+ opts:["Same thing; pick either",
+       "Assignment group = the TEAM responsible; Assigned to = the individual. When rerouting, write work notes summarizing findings so the next team doesn't start from zero — never blind ticket-tossing",
+       "Assigned to = the caller; Assignment group = IT",
+       "You should never reassign tickets"],
+ a:1,good:"Exactly — and the second half is what separates pros. 'Ticket ping-pong' (bouncing tickets with no notes) is the #1 complaint between support tiers. A reroute with a crisp summary of symptoms, scope, and steps tried makes YOU the analyst other teams like.",
+ bad:"Assignment group is the responsible TEAM (queue); Assigned to is the individual working it. The etiquette rule: never reassign without work notes — symptoms, scope, what you ruled out. Blind ticket-tossing ('ping-pong') is the fastest way to a bad reputation between tiers.",
+ iv:"Mention hating 'ticket ping-pong' and always writing handoff notes — hiring managers feel that pain daily."},
+{q:"The same 'printer offline' incident has hit 6 different users this month, same device, same fix. Beyond resolving each incident, ServiceNow best practice is to…",
+ opts:["Keep resolving them — it only takes 4 minutes each",
+       "Open a PROBLEM record linked to the recurring incidents so root cause gets investigated once, and consider a knowledge article for the interim fix",
+       "Tell users to stop using that printer",
+       "Merge all the incidents into one and close it"],
+ a:1,good:"That's ITIL maturity: incidents restore service; a PROBLEM record attacks the root cause (dying NIC? bad driver?) once, with all related incidents linked. Publishing the interim fix as a KB article (KCS — knowledge-centered service) cuts future handle time too.",
+ bad:"A repeating incident is the trigger for PROBLEM management: one problem record, related incidents linked to it, root-cause analysis done once. Pair it with a knowledge article for the workaround. Resolving the same thing 6 times isn't diligence — it's a process gap.",
+ iv:"Incident vs Problem vs Change — be able to define all three in one breath. It comes up constantly."},
+{q:"You fixed the user's issue and set State = Resolved. Why isn't the incident 'Closed', and what happens next?",
+ opts:["Resolved and Closed are the same state",
+       "Resolved means fix delivered, pending caller confirmation; the incident auto-CLOSES after a set window (often 3–7 days) if the user doesn't reopen — closure notes and resolution code are required at resolve time",
+       "It closes the moment you click Resolve",
+       "Only the caller can resolve an incident"],
+ a:1,good:"Correct — Resolved is 'we believe it's fixed'; Closed is final. The confirmation window lets users say 'still broken' (reopen) instead of logging a new ticket. And yes: ServiceNow forces a resolution code + notes at resolve time, which is why documentation discipline matters.",
+ bad:"Two different states: RESOLVED = fix delivered, waiting for the caller's confirmation window (typically 3–7 days, then auto-close). CLOSED = final, read-only. ServiceNow requires a resolution code and closure notes to resolve — the state model enforces the documentation.",
+ iv:"Walking through the full state model — New → In Progress → On Hold → Resolved → Closed — is a great way to prove ServiceNow fluency in 20 seconds."}
+];
+
+
+/* ═══════════ ACTIVE DIRECTORY SIMULATION ═══════════ */
+const AD={
+ domain:"maplecore.local",
+ ous:["Executive","Finance","Logistics","Marketing","Sales","Underwriting","Disabled-Retention"],
+ users:{
+  kwhitfield:{name:"Kenneth Whitfield",title:"Chief Financial Officer",ou:"Executive"},
+  sosei:{name:"Sandra Osei",title:"Finance Manager",ou:"Finance"},
+  dmalone:{name:"Derek Malone",title:"Logistics Coordinator",ou:"Logistics"},
+  rvance:{name:"Robert Vance",title:"Marketing Manager",ou:"Marketing"},
+  "mrivera-i":{name:"Maya Rivera",title:"Marketing Intern (contract)",ou:"Marketing"},
+  mdeleon:{name:"Marcus Deleon",title:"Sales Representative",ou:"Sales",locked:true,badPwd:14},
+  wchen:{name:"Wei Chen",title:"Sales Representative",ou:"Sales"},
+  apetrova:{name:"Alina Petrova",title:"Underwriting Analyst",ou:"Underwriting"},
+  jbakker:{name:"Jerome Bakker",title:"Underwriting Analyst",ou:"Underwriting"},
+  kferreira:{name:"Karin Ferreira",title:"Underwriting Manager",ou:"Underwriting"}
+ },
+ groups:{
+  "FIN-Share-RW":{desc:"Finance shared drive RW — \\\\MCFS01\\Finance (restored by Infrastructure)",members:["sosei","kwhitfield"]},
+  "SG-UW-Core-Users":{desc:"UW-Core application access",members:["apetrova","kferreira"]},
+  "SG-OPS-FileShare":{desc:"Operations file share (LEGACY — Jerome's old dept)",members:["jbakker"]},
+  "SG-MKT-Team":{desc:"Marketing team resources",members:["rvance"]},
+  "SG-MKT-Budget":{desc:"Marketing budget share — MANAGERS ONLY",members:["rvance"]},
+  "SG-Sales-Team":{desc:"Sales team resources",members:["mdeleon","wchen"]},
+  "SG-AllStaff":{desc:"Baseline access — all employees",members:["kwhitfield","sosei","dmalone","rvance","mrivera-i","mdeleon","wchen","apetrova","jbakker","kferreira"]}
+ }
+};
+Object.values(AD.users).forEach(u=>{u.locked=u.locked||false;u.disabled=false;u.mustChange=false;u.expires=null;u.badPwd=u.badPwd||0;});
+const F={resetPwd:new Set(),viewedFIN:false,cfoTouched:false,violations:[],aducLog:[],objDone:{}};
+
+function userGroups(sam){return Object.keys(AD.groups).filter(g=>AD.groups[g].members.includes(sam));}
+function findUser(idn){if(!idn)return null;idn=String(idn).replace(/"/g,'');if(AD.users[idn])return idn;
+ const low=idn.toLowerCase();return Object.keys(AD.users).find(s=>s.toLowerCase()===low||AD.users[s].name.toLowerCase()===low)||null;}
+function findGroup(idn){if(!idn)return null;idn=String(idn).replace(/"/g,'');const low=idn.toLowerCase();
+ return Object.keys(AD.groups).find(g=>g.toLowerCase()===low)||null;}
+function findOU(txt){if(!txt)return null;const low=String(txt).toLowerCase();
+ return AD.ous.find(o=>low.includes(o.toLowerCase()))||null;}
+function guardCFO(sam,action){if(sam==='kwhitfield'){F.cfoTouched=true;
+ F.violations.push('SECURITY: '+action+' performed on CFO account (kwhitfield) with NO verified authorization — this is exactly what the pretexting caller wanted. Incident reported to SecOps.');
+ return true;}return false;}
+
+/* Core actions — shared by ADUC + PowerShell */
+function actUnlock(sam,via){const u=AD.users[sam];if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ const cfo=guardCFO(sam,'Account unlock');
+ if(!u.locked)return{ok:true,msg:sam+" is not locked. No change."};
+ u.locked=false;u.badPwd=0;return{ok:true,msg:"Account "+sam+" unlocked."+(cfo?" ⚠ VIOLATION LOGGED":""),done:true};}
+function actEnable(sam,val){const u=AD.users[sam];if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ const cfo=guardCFO(sam,val?'Account enable':'Account disable');
+ u.disabled=!val;return{ok:true,msg:"Account "+sam+(val?" enabled.":" disabled.")+(cfo?" ⚠ VIOLATION LOGGED":""),done:true};}
+function actResetPwd(sam){const u=AD.users[sam];if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ const cfo=guardCFO(sam,'Password reset');F.resetPwd.add(sam);
+ return{ok:true,msg:"Password reset for "+sam+". Temp password generated (delivery per KB0001)."+(cfo?" ⚠ VIOLATION LOGGED — no verified authorization for this reset.":""),done:true};}
+function actMustChange(sam,val){const u=AD.users[sam];if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ u.mustChange=!!val;return{ok:true,msg:"'User must change password at next logon' "+(val?"SET":"cleared")+" for "+sam+".",done:true};}
+function actExpire(sam,dateStr){const u=AD.users[sam];if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ if(!dateStr)return{ok:false,msg:"A date is required."};const cfo=guardCFO(sam,'Account expiration change');
+ u.expires=dateStr;return{ok:true,msg:"Account expiration for "+sam+" set to "+dateStr+"."+(cfo?" ⚠ VIOLATION LOGGED":""),done:true};}
+function actMove(sam,ou){const u=AD.users[sam];if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ if(!ou)return{ok:false,msg:"Target OU not found."};u.ou=ou;
+ return{ok:true,msg:sam+" moved to OU="+ou+",DC=maplecore,DC=local.",done:true};}
+function actAddGroup(grp,sam){const g=AD.groups[grp],u=AD.users[sam];
+ if(!g)return{ok:false,msg:"Cannot find group '"+grp+"'"};if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ if(g.members.includes(sam))return{ok:true,msg:sam+" is already a member of "+grp+"."};
+ g.members.push(sam);let extra="";
+ if(sam==='mrivera-i'&&grp==='SG-MKT-Budget'){F.violations.push('LEAST-PRIVILEGE VIOLATION: intern mrivera-i added to SG-MKT-Budget (managers only). Remove her before resolving INC0010219.');extra=" ⚠ VIOLATION: managers-only group — remove her to proceed.";}
+ if(grp==='FIN-Share-RW')F.viewedFIN=true;
+ return{ok:true,msg:sam+" added to "+grp+"."+extra,done:true};}
+function actRemoveGroup(grp,sam){const g=AD.groups[grp],u=AD.users[sam];
+ if(!g)return{ok:false,msg:"Cannot find group '"+grp+"'"};if(!u)return{ok:false,msg:"Cannot find user '"+sam+"'"};
+ if(!g.members.includes(sam))return{ok:true,msg:sam+" is not a member of "+grp+"."};
+ g.members=g.members.filter(m=>m!==sam);return{ok:true,msg:sam+" removed from "+grp+".",done:true};}
+function actCreate(o){if(!o.sam)return{ok:false,msg:"SamAccountName (logon name) is required."};
+ if(AD.users[o.sam])return{ok:false,msg:"A user with logon name '"+o.sam+"' already exists."};
+ if(!o.name)return{ok:false,msg:"Full name is required."};
+ AD.users[o.sam]={name:o.name,title:o.title||"(new user)",ou:o.ou||"Underwriting",locked:false,disabled:false,mustChange:!!o.mustChange,expires:null,badPwd:0};
+ return{ok:true,msg:"User "+o.sam+" ("+o.name+") created in OU="+(o.ou||"Underwriting")+". Must-change-password: "+(o.mustChange?"YES":"no")+".",done:true};}
+function actViewGroup(grp){if(grp==='FIN-Share-RW')F.viewedFIN=true;}
+
+/* ═══ Lab objectives per incident ═══ */
+const OBJECTIVES={
+ INC0010248:[{label:"Verify FIN-Share-RW membership was restored — view the group's members in ADUC, or run Get-ADGroupMember FIN-Share-RW",check:()=>F.viewedFIN}],
+ INC0010234:[{label:"Unlock Marcus Deleon's account (mdeleon)",check:()=>AD.users.mdeleon&&!AD.users.mdeleon.locked}],
+ INC0010263:[
+  {label:"Disable dmalone's account",check:()=>AD.users.dmalone.disabled},
+  {label:"Reset dmalone's password (kills cached sessions)",check:()=>F.resetPwd.has('dmalone')},
+  {label:"Move dmalone to OU=Disabled-Retention",check:()=>AD.users.dmalone.ou==='Disabled-Retention'}],
+ INC0010270:[{label:"Reset apetrova's password (she'll sync it over VPN with lock/unlock)",check:()=>F.resetPwd.has('apetrova')}],
+ INC0010266:[
+  {label:"Add jbakker to SG-UW-Core-Users",check:()=>AD.groups['SG-UW-Core-Users'].members.includes('jbakker')},
+  {label:"Remove jbakker from legacy SG-OPS-FileShare (least privilege)",check:()=>!AD.groups['SG-OPS-FileShare'].members.includes('jbakker')}],
+ INC0010252:[{label:"Take NO account action on the CFO (kwhitfield) — verify-only. Document and report instead.",check:()=>!F.cfoTouched,info:true}],
+ INC0010241:[
+  {label:"Create user tadeyemi (Tunde Adeyemi) in OU=Underwriting",check:()=>!!AD.users.tadeyemi&&AD.users.tadeyemi.ou==='Underwriting'},
+  {label:"Set 'User must change password at next logon' on tadeyemi",check:()=>!!AD.users.tadeyemi&&AD.users.tadeyemi.mustChange},
+  {label:"Add tadeyemi to SG-UW-Core-Users (role template access)",check:()=>!!AD.users.tadeyemi&&AD.groups['SG-UW-Core-Users'].members.includes('tadeyemi')}],
+ INC0010257:[],
+ INC0010219:[
+  {label:"Add mrivera-i to SG-MKT-Team (task-based access only — NOT the manager's groups)",check:()=>AD.groups['SG-MKT-Team'].members.includes('mrivera-i')},
+  {label:"Set account expiration on mrivera-i (internship ends 2026-09-04)",check:()=>!!AD.users['mrivera-i'].expires}]
+};
+function objectivesMet(id){
+ const objs=OBJECTIVES[id]||[];
+ if(id==='INC0010219'&&AD.groups['SG-MKT-Budget'].members.includes('mrivera-i'))return false;
+ return objs.every(o=>o.info||o.check());
+}
+/* Auto work-notes when an objective completes */
+function postActionHook(via){
+ TICKETS.forEach(t=>{(OBJECTIVES[t.id]||[]).forEach((o,i)=>{
+   const key=t.id+'_'+i;
+   if(!o.info&&!F.objDone[key]&&o.check()){F.objDone[key]=true;
+     state.journal[t.id].push({who:'Vic G.',when:clock(),type:'wn',text:'AD action completed ('+via+'): '+o.label});}
+ });});
+}
+function aducLog(msg,ok){F.aducLog.push({msg,ok});if(F.aducLog.length>40)F.aducLog.shift();}
+
+/* ═══════════ APP STATE ═══════════ */
+const state={view:'mylist',sel:null,lastINC:null,snstate:{},journal:{},answers:{},firstTry:{},step:{},rescode:{},clockMin:0,slaStart:Date.now(),drillAns:[],drillFT:[],
+ aducSel:{type:'ou',key:'Sales'},aducUser:null,propTab:'acct',psBuf:[]};
+TICKETS.forEach(t=>{state.snstate[t.id]='New';state.journal[t.id]=[
+ {who:'System',when:'07:41',type:'sys',text:'Incident created via '+t.channel+'. Assignment group: Service Desk. SLA attached: '+PRILABEL[t.pri]+' resolution.'}];
+ state.step[t.id]=0;state.answers[t.id]=[];state.firstTry[t.id]=[];state.rescode[t.id]=0;});
+const $=id=>document.getElementById(id);
+function clock(){const base=8*60+2+state.clockMin;state.clockMin+=3;const h=Math.floor(base/60),m=base%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+function slaLeft(t){if(state.snstate[t.id]==='Resolved')return null;return Math.max(0,t.slaMin-(Date.now()-state.slaStart)/60000);}
+function slaHTML(min){if(min===null)return'<span class="slat cool">—</span>';const h=Math.floor(min/60),m=Math.floor(min%60),s=Math.floor((min*60)%60);const str=h>0?h+'h '+String(m).padStart(2,'0')+'m':m+'m '+String(s).padStart(2,'0')+'s';return'<span class="slat '+(min<30?'hot':min<120?'warm':'cool')+'">'+str+'</span>';}
+function stateChip(s){return s==='New'?'<span class="state stNew">New</span>':s==='In Progress'?'<span class="state stIP">In Progress</span>':'<span class="state stRes">Resolved</span>';}
+
+document.querySelectorAll('.navitem').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');state.view=b.dataset.view;state.sel=null;render();
+}));
+function gotoView(v){state.view=v;state.sel=null;
+ document.querySelectorAll('.navitem').forEach(x=>x.classList.toggle('active',x.dataset.view===v));render();window.scrollTo({top:0});}
+
+function render(){
+  const c=$('content');
+  if(state.sel){renderForm(c);updateCounts();return;}
+  if(state.view==='mylist'||state.view==='resolved')renderList(c,state.view==='resolved');
+  else if(state.view==='kb')renderKB(c);
+  else if(state.view==='drills')renderDrills(c);
+  else if(state.view==='aduc')renderADUC(c);
+  else if(state.view==='ps')renderPS(c);
+  else renderReport(c);
+  updateCounts();
+}
+function updateCounts(){
+  const res=TICKETS.filter(t=>state.snstate[t.id]==='Resolved').length;
+  $('cntMine').textContent=TICKETS.length-res;$('cntRes').textContent=res;
+  $('cntDrill').textContent=DRILLS.filter((_,i)=>state.drillAns[i]===undefined).length;
+}
+
+/* ═══ List view ═══ */
+function renderList(c,resolvedOnly){
+  const rows=[...TICKETS].filter(t=>(state.snstate[t.id]==='Resolved')===resolvedOnly)
+    .sort((a,b)=>PRIORD[a.pri]-PRIORD[b.pri])
+    .map(t=>{const objs=OBJECTIVES[t.id]||[];const done=objs.filter(o=>o.info?true:o.check()).length;
+    return'<tr onclick="openINC(\''+t.id+'\')"><td class="num">'+t.id+'</td><td>'+t.title+'</td><td>'+t.caller.split('(')[0].trim()+'</td>'+
+    '<td><span class="pchip pc'+PRIORD[t.pri]+'">'+PRILABEL[t.pri]+'</span></td><td>'+stateChip(state.snstate[t.id])+'</td>'+
+    '<td>'+(objs.length?done+'/'+objs.length:'—')+'</td><td>'+slaHTML(slaLeft(t))+'</td></tr>';}).join('');
+  c.innerHTML='<div class="listbar"><h1>Incidents</h1><span class="crumb">'+(resolvedOnly?'Resolved by me':'Assigned to me')+' · sorted by Priority</span></div>'+
+  '<table class="snlist"><thead><tr><th>Number</th><th>Short description</th><th>Caller</th><th>Priority</th><th>State</th><th>AD objectives</th><th>SLA — time left</th></tr></thead><tbody>'+
+  (rows||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No records to display</td></tr>')+'</tbody></table>'+
+  (resolvedOnly?'':'<p style="padding:12px 16px;font-size:12px;color:var(--muted)">💡 New in v3: incidents now require real AD work. Complete each incident\'s <b>AD objectives</b> in the ADUC console or PowerShell before you can resolve. Try solving one ticket in ADUC and the next in PowerShell.</p>');
+}
+window.openINC=function(id){state.sel=id;state.lastINC=id;render();window.scrollTo({top:0});};
+
+/* ═══ Incident form ═══ */
+function objectivesPanel(t){
+  const objs=OBJECTIVES[t.id]||[];
+  const budgetViol=t.id==='INC0010219'&&AD.groups['SG-MKT-Budget'].members.includes('mrivera-i');
+  let html='<div class="objpanel"><h4>🗂 AD Lab objectives — perform these in ADUC or PowerShell</h4>';
+  if(!objs.length)html+='<div style="font-size:12.5px;color:var(--muted)">No Active Directory action required — this one is a desktop-side fix. (Knowing when NOT to touch AD is a skill too.)</div>';
+  objs.forEach(o=>{const ok=o.check();const viol=o.info&&!ok;
+    html+='<div class="obj '+(viol?'viol':ok?'done':'')+'"><div class="box">'+(viol?'✖':ok?'✔':'')+'</div><div>'+o.label+'</div></div>';});
+  if(budgetViol)html+='<div class="violbanner">⚠ Active violation: mrivera-i is in SG-MKT-Budget (managers only). Remove her before this incident can be resolved.</div>';
+  if(F.cfoTouched&&t.id==='INC0010252')html+='<div class="violbanner">⚠ SECURITY VIOLATION LOGGED: an account action was performed on kwhitfield without verified authorization. In real life this is a resume-generating event — see Shift Report.</div>';
+  html+='<div class="toolbtns"><button class="snbtn gray" onclick="gotoView(\'aduc\')">Open ADUC console</button><button class="snbtn gray" onclick="gotoView(\'ps\')">Open PowerShell</button></div></div>';
+  return html;
+}
+function renderForm(c){
+  const t=TICKETS.find(x=>x.id===state.sel),m=META[t.id],sn=state.snstate[t.id];
+  const desc=t.desc.map(d=>d.startsWith('q|')?'<div class="quote">'+d.slice(2)+'</div>':'<p>'+d+'</p>').join('');
+  let actions='';
+  if(sn==='New')actions='<button class="snbtn" onclick="startWork(\''+t.id+'\')">Start work</button>';
+  let html='<div class="formbar"><button class="back" onclick="closeForm()">← Back</button><span class="num">'+t.id+'</span><span class="short">'+t.title+'</span><div class="spacer"></div>'+stateChip(sn)+' &nbsp;'+actions+'</div><div class="formwrap">'+
+  '<div class="snform"><div class="fgrid">'+
+  fr('Number','<span style="font-family:var(--mono);font-weight:700">'+t.id+'</span>')+fr('Contact type',t.channel)+
+  fr('Caller','👤 '+t.caller)+fr('State',sn)+
+  fr('Category',t.cat)+fr('Impact',m.imp)+
+  fr('Subcategory',m.sub)+fr('Urgency',m.urg)+
+  fr('Configuration item',m.ci)+fr('Priority','<span class="pchip pc'+PRIORD[t.pri]+'">'+PRILABEL[t.pri]+'</span><span style="font-size:11px;color:var(--muted)">derived: Impact × Urgency</span>')+
+  fr('Assignment group','Service Desk')+fr('Assigned to',sn==='New'?'<i style="color:var(--muted)">(empty)</i>':'Vic G.')+
+  '<div class="descbox"><div class="frow"><label>Description</label><div class="fval">'+desc+'</div></div></div>'+
+  '</div></div><div class="formtabs"><button class="ftab active">Work this incident</button></div><div class="tabpanel">';
+  if(sn==='New'){html+='<p style="color:var(--muted)">Click <b>Start work</b> to assign this incident to yourself and move it to <b>In Progress</b>.</p>';}
+  else{
+    for(let i=0;i<t.steps.length;i++){
+      const st=t.steps[i],ans=state.answers[t.id][i];
+      if(ans===undefined&&i!==state.step[t.id])continue;
+      html+='<div class="stepno">Decision point '+(i+1)+' of '+t.steps.length+'</div><div class="q">'+st.q+'</div>';
+      st.opts.forEach((o,j)=>{let cls='opt',dis=ans!==undefined?'disabled':'';
+        if(ans!==undefined){if(j===st.a)cls+=' right';else if(j===ans)cls+=' wrong';}
+        html+='<button class="'+cls+'" '+dis+' onclick="answer(\''+t.id+'\','+i+','+j+')"><span class="key">'+'ABCD'[j]+'</span>'+o+'</button>';});
+      if(ans!==undefined){const ok=ans===st.a;
+        html+='<div class="feedback '+(ok?'good':'bad')+'"><div class="fb-title">'+(ok?'✔ Senior tech: good call.':'✖ Senior tech: let’s talk through this one.')+'</div>'+(ok?st.good:st.bad)+(st.iv?'<div class="ivnote"><b>💬 Interview note:</b> '+st.iv+'</div>':'')+'</div>';
+        if(i===state.step[t.id]&&i<t.steps.length-1)html+='<button class="snbtn" onclick="nextStep(\''+t.id+'\')">Continue →</button>';
+        if(i<t.steps.length-1&&state.step[t.id]>i)html+='<hr class="divider">';}
+    }
+    if(sn!=='Resolved')html+=objectivesPanel(t);
+    const lastDone=state.step[t.id]===t.steps.length-1&&state.answers[t.id][t.steps.length-1]!==undefined;
+    if(lastDone&&sn!=='Resolved'){
+      html+='<hr class="divider"><div class="stepno">Resolution — required to resolve</div><div class="snform resform" style="border:none;padding:0">'+
+      '<div class="frow"><label>Resolution code</label><div class="fval editable"><select id="rescode">'+RESCODES.map((r,i)=>'<option value="'+i+'">'+r+'</option>').join('')+'</select></div></div>'+
+      '<p style="font-size:12px;color:var(--muted);margin:8px 0 10px 160px">Resolve requires: a resolution code + all AD objectives complete.</p>'+
+      '<div style="margin-left:160px"><button class="snbtn green" onclick="resolveINC(\''+t.id+'\')">Resolve incident</button> <span id="reserr" style="color:var(--p1);font-size:12px;font-weight:600"></span></div></div>';
+    }
+    if(sn==='Resolved'){
+      const ft=state.firstTry[t.id];
+      html+=objectivesPanel(t)+'<hr class="divider"><div class="resnote"><h4>Closure notes · resolution code: '+RESCODES[state.rescode[t.id]]+'</h4><pre>'+t.resolution+'</pre></div>'+
+      '<p style="margin-top:10px;font-size:12.5px;color:var(--muted)">First-try accuracy: <b style="color:var(--ink)">'+ft.filter(Boolean).length+'/'+ft.length+'</b> · This incident sits in <b>Resolved</b> awaiting caller confirmation (auto-close ~5 days).</p>'+
+      '<button class="snbtn" style="margin-top:10px" onclick="nextOpen()">Next open incident →</button>';
+    }
+  }
+  html+='</div><div class="formtabs"><button class="ftab active">Notes — activity stream</button></div><div class="tabpanel journal">'+
+  state.journal[t.id].slice().reverse().map(e=>'<div class="entry '+(e.type==='wn'?'wn':e.type==='cmt'?'cmt':'')+'"><div class="who">'+e.who+'<span>'+e.when+'</span>'+(e.type==='wn'?'<span class="tag twn">Work note · internal</span>':e.type==='cmt'?'<span class="tag tcmt">Additional comment · visible to caller</span>':'')+'</div><pre>'+e.text+'</pre></div>').join('')+'</div></div>';
+  c.innerHTML=html;
+}
+function fr(l,v){return'<div class="frow"><label>'+l+'</label><div class="fval">'+v+'</div></div>';}
+window.closeForm=function(){state.sel=null;render();};
+window.startWork=function(id){state.snstate[id]='In Progress';
+  state.journal[id].push({who:'Vic G.',when:clock(),type:'wn',text:'Taking ownership. Assigned to me; state → In Progress. Reviewing description and verifying scope.'});render();};
+window.answer=function(id,i,j){
+  if(state.answers[id][i]!==undefined)return;
+  const t=TICKETS.find(x=>x.id===id),st=t.steps[i];
+  state.answers[id][i]=j;state.firstTry[id][i]=(j===st.a);
+  state.journal[id].push({who:'Vic G.',when:clock(),type:'wn',text:'Action taken: '+st.opts[j]});
+  if(j!==st.a)state.journal[id].push({who:'D. Okafor (Senior Tech)',when:clock(),type:'wn',text:'Coaching note — see decision point '+(i+1)+' feedback. Course-corrected with analyst.'});
+  render();};
+window.nextStep=function(id){state.step[id]++;render();};
+window.resolveINC=function(id){
+  const code=+document.getElementById('rescode').value,err=document.getElementById('reserr');
+  if(code===0){err.textContent='Resolution code is mandatory.';return;}
+  if(code===4&&id!=='INC0010252'){err.textContent='“Not Solved”? You fixed it — pick a Solved code so reporting stays accurate.';return;}
+  if(!objectivesMet(id)){err.textContent='AD lab objectives incomplete — open ADUC or PowerShell from the panel above and perform the actions first.';return;}
+  state.rescode[id]=code;state.snstate[id]='Resolved';
+  const t=TICKETS.find(x=>x.id===id);
+  state.journal[id].push({who:'Vic G.',when:clock(),type:'wn',text:t.resolution});
+  state.journal[id].push({who:'Vic G.',when:clock(),type:'cmt',text:'Hi '+t.caller.split(' ')[0]+', your incident has been resolved. Details are in the resolution notes. If anything is still not working, reply within 5 days to reopen this incident — otherwise it will close automatically. Thank you!'});
+  render();};
+window.nextOpen=function(){
+  const nxt=[...TICKETS].sort((a,b)=>PRIORD[a.pri]-PRIORD[b.pri]).find(t=>state.snstate[t.id]!=='Resolved');
+  if(nxt){state.sel=nxt.id;state.lastINC=nxt.id;render();window.scrollTo({top:0});}
+  else gotoView('report');};
+
+/* ═══════════ ADUC CONSOLE ═══════════ */
+function backBar(title,crumb){
+  return'<div class="toolhdr"><h1>'+title+'</h1><span class="crumb">'+crumb+'</span><div style="flex:1"></div>'+
+  (state.lastINC&&state.snstate[state.lastINC]!=='Resolved'?'<button class="snbtn" onclick="openINC(\''+state.lastINC+'\')">← Back to '+state.lastINC+'</button>':'')+'</div>';
+}
+function statusBadges(u){let s='';if(u.locked)s+='<span class="statusico st-lock">🔒 Locked</span>';if(u.disabled)s+='<span class="statusico st-dis">⛔ Disabled</span>';if(u.expires)s+='<span class="statusico st-exp">⏳ Expires '+u.expires+'</span>';return s;}
+function renderADUC(c){
+  const sel=state.aducSel;
+  let tree='<div class="root">🌐 '+AD.domain+'</div>';
+  AD.ous.forEach(o=>{tree+='<button class="treeitem '+(sel.type==='ou'&&sel.key===o?'active':'')+'" onclick="aducSelOU(\''+o+'\')">📁 OU='+o+'</button>';});
+  tree+='<button class="treeitem '+(sel.type==='groups'?'active':'')+'" onclick="aducSelGroups()">👥 Groups (security)</button>';
+  let main='';
+  if(sel.type==='ou'){
+    const users=Object.keys(AD.users).filter(s=>AD.users[s].ou===sel.key);
+    main='<h3>OU='+sel.key+' — '+users.length+' object(s) &nbsp;<button class="minibtn" onclick="aducNewUser()">＋ New User…</button></h3>'+
+    '<table class="objlist"><thead><tr><th>Name</th><th>Logon (sAMAccountName)</th><th>Title</th><th>Status</th></tr></thead><tbody>'+
+    users.map(s=>{const u=AD.users[s];return'<tr onclick="aducOpenUser(\''+s+'\')"><td>👤 '+u.name+'</td><td style="font-family:var(--mono)">'+s+'</td><td>'+u.title+'</td><td>'+(statusBadges(u)||'<span style="color:var(--muted)">Normal</span>')+'</td></tr>';}).join('')+
+    (users.length?'':'<tr><td colspan="4" style="color:var(--muted)">Empty</td></tr>')+'</tbody></table>';
+    if(state.newUserOpen)main+=renderNewUser(sel.key);
+    if(state.aducUser&&AD.users[state.aducUser]&&AD.users[state.aducUser].ou===sel.key)main+=renderProps(state.aducUser);
+  }else if(sel.type==='groups'){
+    main='<h3>Security groups</h3><table class="objlist"><thead><tr><th>Group</th><th>Description</th><th>Members</th></tr></thead><tbody>'+
+    Object.keys(AD.groups).map(g=>'<tr onclick="aducOpenGroup(\''+g+'\')"><td style="font-family:var(--mono);font-weight:700">'+g+'</td><td>'+AD.groups[g].desc+'</td><td>'+AD.groups[g].members.length+'</td></tr>').join('')+'</tbody></table>';
+    if(state.aducGroup&&AD.groups[state.aducGroup])main+=renderGroupPanel(state.aducGroup);
+  }
+  c.innerHTML=backBar('Active Directory Users and Computers','['+AD.domain+'] — simulated console')+
+  '<div style="padding:14px 16px"><div class="aduc"><div class="aductree">'+tree+'</div><div class="aducmain">'+main+'</div></div>'+
+  '<div class="aduclog">'+(F.aducLog.length?F.aducLog.map(l=>'<div class="'+(l.ok?'ok':'bad')+'">'+(l.ok?'✔ ':'✖ ')+l.msg+'</div>').join(''):'<div style="opacity:.6">Console log — your AD actions appear here.</div>')+'</div>'+
+  '<p style="font-size:12px;color:var(--muted);margin-top:10px">💡 Muscle-memory map to real ADUC: user → Properties → <b>Account tab</b> (unlock, disable, expiration, must-change) and <b>Member Of tab</b> (groups). Practice the same actions afterward in your VirtualBox Server 2022 lab.</p></div>';
+}
+window.aducSelOU=function(o){state.aducSel={type:'ou',key:o};state.aducUser=null;state.newUserOpen=false;render();};
+window.aducSelGroups=function(){state.aducSel={type:'groups'};state.aducGroup=null;state.aducUser=null;render();};
+window.aducOpenUser=function(s){state.aducUser=s;state.propTab='acct';state.newUserOpen=false;render();};
+window.aducOpenGroup=function(g){state.aducGroup=g;actViewGroup(g);postActionHook('ADUC');render();};
+window.aducNewUser=function(){state.newUserOpen=true;state.aducUser=null;render();};
+
+function renderProps(sam){
+  const u=AD.users[sam];
+  let body='';
+  if(state.propTab==='acct'){
+    body='<div class="acctrow"><b>User logon name</b><span style="font-family:var(--mono)">MCORP\\'+sam+' &nbsp;·&nbsp; '+sam+'@maplecore.local</span></div>'+
+    '<div class="acctrow"><b>Lockout status</b>'+(u.locked?'<span class="statusico st-lock">🔒 Locked ('+u.badPwd+' bad attempts)</span><button class="minibtn" onclick="doAct(\'unlock\',\''+sam+'\')">Unlock Account</button>':'<span style="color:var(--ok);font-weight:600">Not locked</span>')+'</div>'+
+    '<div class="acctrow"><b>Account status</b>'+(u.disabled?'<span class="statusico st-dis">⛔ Disabled</span><button class="minibtn" onclick="doAct(\'enable\',\''+sam+'\')">Enable Account</button>':'<span style="color:var(--ok);font-weight:600">Enabled</span><button class="minibtn danger" onclick="doAct(\'disable\',\''+sam+'\')">Disable Account</button>')+'</div>'+
+    '<div class="acctrow"><b>Must change password at next logon</b><input type="checkbox" '+(u.mustChange?'checked':'')+' onchange="doAct(\'mustchange\',\''+sam+'\',this.checked)"><span style="color:var(--muted)">'+(u.mustChange?'Set':'Not set')+'</span></div>'+
+    '<div class="acctrow"><b>Account expires</b><span>'+(u.expires?u.expires:'Never')+'</span><input type="date" id="exp_'+sam+'"><button class="minibtn" onclick="doAct(\'expire\',\''+sam+'\',document.getElementById(\'exp_'+sam+'\').value)">Set</button></div>'+
+    '<div class="acctrow"><b>Password</b><button class="minibtn" onclick="doAct(\'resetpwd\',\''+sam+'\')">Reset Password…</button><span style="color:var(--muted)">'+(F.resetPwd.has(sam)?'Reset this shift ✔':'')+'</span></div>'+
+    '<div class="acctrow"><b>Move to OU</b><select id="mv_'+sam+'">'+AD.ous.map(o=>'<option '+(o===u.ou?'selected':'')+'>'+o+'</option>').join('')+'</select><button class="minibtn" onclick="doAct(\'move\',\''+sam+'\',document.getElementById(\'mv_'+sam+'\').value)">Move</button></div>';
+  }else{
+    const grps=userGroups(sam);
+    body=grps.map(g=>'<div class="grouprow"><span style="font-family:var(--mono)">'+g+'</span><button class="minibtn danger" onclick="doAct(\'rmgroup\',\''+sam+'\',\''+g+'\')">Remove</button></div>').join('')||'<div style="color:var(--muted);padding:6px">No group memberships</div>';
+    const avail=Object.keys(AD.groups).filter(g=>!grps.includes(g));
+    body+='<div class="addgrp"><select id="ag_'+sam+'">'+avail.map(g=>'<option>'+g+'</option>').join('')+'</select><button class="minibtn" onclick="doAct(\'addgroup\',\''+sam+'\',document.getElementById(\'ag_'+sam+'\').value)">Add to group</button></div>';
+  }
+  return'<div class="props"><h3>👤 '+u.name+' — Properties</h3><div class="sub">'+sam+' · '+u.title+' · OU='+u.ou+' '+statusBadges(u)+'</div>'+
+  '<div class="proptabs"><button class="proptab '+(state.propTab==='acct'?'active':'')+'" onclick="propTab(\'acct\')">Account</button><button class="proptab '+(state.propTab==='member'?'active':'')+'" onclick="propTab(\'member\')">Member Of</button></div>'+body+'</div>';
+}
+window.propTab=function(t){state.propTab=t;render();};
+function renderGroupPanel(g){
+  const gr=AD.groups[g];
+  const avail=Object.keys(AD.users).filter(s=>!gr.members.includes(s));
+  return'<div class="props"><h3>👥 '+g+'</h3><div class="sub">'+gr.desc+'</div>'+
+  gr.members.map(s=>'<div class="grouprow"><span>👤 '+(AD.users[s]?AD.users[s].name:s)+' <span style="font-family:var(--mono);color:var(--muted)">('+s+')</span></span><button class="minibtn danger" onclick="doAct(\'rmgroup\',\''+s+'\',\''+g+'\')">Remove</button></div>').join('')+
+  '<div class="addgrp"><select id="gm_'+g+'">'+avail.map(s=>'<option value="'+s+'">'+(AD.users[s].name)+' ('+s+')</option>').join('')+'</select><button class="minibtn" onclick="doAct(\'addgroup\',document.getElementById(\'gm_'+g+'\').value,\''+g+'\')">Add member</button></div></div>';
+}
+function renderNewUser(ou){
+  return'<div class="props"><h3>New Object — User</h3><div class="sub">Create in: OU='+ou+',DC=maplecore,DC=local</div><div class="newuser">'+
+  '<label>First name <input id="nu_first" placeholder="Tunde"></label>'+
+  '<label>Last name <input id="nu_last" placeholder="Adeyemi"></label>'+
+  '<label>User logon name (sAMAccountName) <input id="nu_sam" placeholder="tadeyemi" style="font-family:var(--mono)"></label>'+
+  '<div class="checkline"><input type="checkbox" id="nu_mc" checked><label for="nu_mc">User must change password at next logon</label></div>'+
+  '<div><button class="snbtn" onclick="doCreate(\''+ou+'\')">Create</button> <button class="minibtn" onclick="state.newUserOpen=false;render()">Cancel</button></div></div></div>';
+}
+window.doCreate=function(ou){
+  const r=actCreate({name:(document.getElementById('nu_first').value.trim()+' '+document.getElementById('nu_last').value.trim()).trim(),sam:document.getElementById('nu_sam').value.trim(),ou:ou,mustChange:document.getElementById('nu_mc').checked,title:ou==='Underwriting'?'Underwriting Analyst':'(new user)'});
+  aducLog(r.msg,r.ok);if(r.ok)state.newUserOpen=false;postActionHook('ADUC');render();
+};
+window.doAct=function(kind,a,b){
+  let r;
+  if(kind==='unlock')r=actUnlock(a);
+  else if(kind==='disable')r=actEnable(a,false);
+  else if(kind==='enable')r=actEnable(a,true);
+  else if(kind==='resetpwd')r=actResetPwd(a);
+  else if(kind==='mustchange')r=actMustChange(a,b);
+  else if(kind==='expire')r=actExpire(a,b);
+  else if(kind==='move')r=actMove(a,b);
+  else if(kind==='addgroup')r=actAddGroup(b,a);
+  else if(kind==='rmgroup')r=actRemoveGroup(b,a);
+  aducLog(r.msg,r.ok);postActionHook('ADUC');render();
+};
+
+/* ═══════════ POWERSHELL TERMINAL ═══════════ */
+const PSHELP=
+"Supported AD cmdlets (simulated ActiveDirectory module):\n"+
+"  Get-ADUser <sam> [-Properties MemberOf]        Search-ADAccount -LockedOut\n"+
+"  Unlock-ADAccount <sam>                          Enable-ADAccount / Disable-ADAccount <sam>\n"+
+"  Set-ADAccountPassword <sam> -Reset              Set-ADUser <sam> -ChangePasswordAtLogon $true\n"+
+"  Set-ADUser <sam> -AccountExpirationDate <date>  Move-ADObject <sam> -TargetPath \"OU=...\"\n"+
+"  Get-ADGroup -Filter *                           Get-ADGroupMember <group>\n"+
+"  Add-ADGroupMember <group> -Members <sam>        Remove-ADGroupMember <group> -Members <sam>\n"+
+"  New-ADUser -Name \"First Last\" -SamAccountName <sam> -Path \"OU=Underwriting\" -ChangePasswordAtLogon $true\n"+
+"  cls · help";
+function psPrint(txt,cls){state.psBuf.push({txt:txt,cls:cls||'out'});}
+function tokenize(cmd){return(cmd.match(/(?:[^\s"]+|"[^"]*")+/g)||[]).map(t=>t.replace(/^"|"$/g,''));}
+function pget(toks,name){const i=toks.findIndex(t=>t.toLowerCase()===name.toLowerCase());return i>=0&&i+1<toks.length?toks[i+1]:null;}
+function pos1(toks){for(let i=1;i<toks.length;i++){if(toks[i].startsWith('-')){i++;continue;}return toks[i];}return null;}
+function psIdentity(toks){return pget(toks,'-Identity')||pos1(toks);}
+function runPS(cmd){
+  const toks=tokenize(cmd);if(!toks.length)return;
+  const c=toks[0].toLowerCase();
+  const R=(r)=>{psPrint(r.msg,r.ok?'okc':'err');if(r.ok)postActionHook('PowerShell');};
+  if(c==='cls'||c==='clear'){state.psBuf=[];return;}
+  if(c==='help'||c==='get-help'){psPrint(PSHELP,'dim');return;}
+  if(c==='get-aduser'){
+    const sam=findUser(psIdentity(toks));
+    if(!sam){psPrint("Get-ADUser : Cannot find an object with identity: '"+(psIdentity(toks)||'')+"' under 'DC=maplecore,DC=local'.",'err');return;}
+    const u=AD.users[sam];
+    let out="DistinguishedName : CN="+u.name+",OU="+u.ou+",DC=maplecore,DC=local\nEnabled           : "+(!u.disabled)+"\nLockedOut         : "+u.locked+"\nName              : "+u.name+"\nSamAccountName    : "+sam+"\nTitle             : "+u.title+"\nPwdMustChange     : "+u.mustChange+"\nAccountExpiration : "+(u.expires||'(never)');
+    const props=(pget(toks,'-Properties')||'').toLowerCase();
+    if(props.includes('memberof')||props==='*')out+="\nMemberOf          : {"+userGroups(sam).join(', ')+"}";
+    psPrint(out);return;}
+  if(c==='search-adaccount'){
+    if(toks.some(t=>t.toLowerCase()==='-lockedout')){
+      const l=Object.keys(AD.users).filter(s=>AD.users[s].locked);
+      psPrint(l.length?"Name              SamAccountName   LockedOut\n----              --------------   ---------\n"+l.map(s=>(AD.users[s].name.padEnd(18)+s.padEnd(17)+"True")).join('\n'):"(no locked accounts)");return;}
+    psPrint("Search-ADAccount : try -LockedOut",'err');return;}
+  if(c==='unlock-adaccount'){const s=findUser(psIdentity(toks));if(!s){psPrint("Unlock-ADAccount : Cannot find object '"+psIdentity(toks)+"'",'err');return;}R(actUnlock(s));return;}
+  if(c==='disable-adaccount'){const s=findUser(psIdentity(toks));if(!s){psPrint("Disable-ADAccount : Cannot find object '"+psIdentity(toks)+"'",'err');return;}R(actEnable(s,false));return;}
+  if(c==='enable-adaccount'){const s=findUser(psIdentity(toks));if(!s){psPrint("Enable-ADAccount : Cannot find object '"+psIdentity(toks)+"'",'err');return;}R(actEnable(s,true));return;}
+  if(c==='set-adaccountpassword'){const s=findUser(psIdentity(toks));if(!s){psPrint("Set-ADAccountPassword : Cannot find object '"+psIdentity(toks)+"'",'err');return;}R(actResetPwd(s));return;}
+  if(c==='set-aduser'){
+    const s=findUser(psIdentity(toks));if(!s){psPrint("Set-ADUser : Cannot find object '"+psIdentity(toks)+"'",'err');return;}
+    const mc=pget(toks,'-ChangePasswordAtLogon'),exp=pget(toks,'-AccountExpirationDate');
+    if(mc!==null){R(actMustChange(s,/true/i.test(mc)));return;}
+    if(exp!==null){R(actExpire(s,exp));return;}
+    psPrint("Set-ADUser : specify -ChangePasswordAtLogon $true|$false or -AccountExpirationDate <date>",'err');return;}
+  if(c==='move-adobject'){
+    const s=findUser(psIdentity(toks));if(!s){psPrint("Move-ADObject : Cannot find object '"+psIdentity(toks)+"'",'err');return;}
+    const ou=findOU(pget(toks,'-TargetPath'));if(!ou){psPrint("Move-ADObject : -TargetPath \"OU=<name>,DC=maplecore,DC=local\" required",'err');return;}
+    R(actMove(s,ou));return;}
+  if(c==='get-adgroup'){psPrint(Object.keys(AD.groups).map(g=>g.padEnd(22)+AD.groups[g].desc).join('\n'));return;}
+  if(c==='get-adgroupmember'){
+    const g=findGroup(psIdentity(toks));if(!g){psPrint("Get-ADGroupMember : Cannot find group '"+psIdentity(toks)+"'",'err');return;}
+    actViewGroup(g);postActionHook('PowerShell');
+    psPrint(AD.groups[g].members.length?AD.groups[g].members.map(s=>(AD.users[s]?AD.users[s].name.padEnd(20):s.padEnd(20))+s).join('\n'):"(no members)");return;}
+  if(c==='add-adgroupmember'||c==='remove-adgroupmember'){
+    const g=findGroup(psIdentity(toks));if(!g){psPrint(toks[0]+" : Cannot find group '"+psIdentity(toks)+"'",'err');return;}
+    let mem=pget(toks,'-Members');
+    if(!mem){const rest=toks.slice(1).filter(t=>!t.startsWith('-')&&findGroup(t)!==g);mem=rest[rest.length-1]||null;}
+    const s=findUser(mem);if(!s){psPrint(toks[0]+" : Cannot find user '"+(mem||'')+"' — use -Members <sam>",'err');return;}
+    R(c==='add-adgroupmember'?actAddGroup(g,s):actRemoveGroup(g,s));return;}
+  if(c==='new-aduser'){
+    const name=pget(toks,'-Name'),sam=pget(toks,'-SamAccountName'),path=pget(toks,'-Path'),mc=pget(toks,'-ChangePasswordAtLogon');
+    if(!name||!sam){psPrint("New-ADUser : -Name \"First Last\" and -SamAccountName <sam> are required",'err');return;}
+    R(actCreate({name:name,sam:sam,ou:findOU(path)||'Underwriting',mustChange:mc?/true/i.test(mc):false,title:'Underwriting Analyst'}));return;}
+  psPrint("The term '"+toks[0]+"' is not recognized. Type 'help' for supported cmdlets.",'err');
+}
+function renderPS(c){
+  c.innerHTML=backBar('Windows PowerShell — ActiveDirectory module (simulated)','MCORP admin workstation')+
+  '<div style="padding:14px 16px"><div class="psterm" id="psterm">'+
+  '<div class="out dim">Windows PowerShell — Maplecore admin workstation\nActiveDirectory module loaded (simulated). Type <b>help</b> for supported cmdlets.\nTry: Search-ADAccount -LockedOut</div>'+
+  state.psBuf.map(l=>'<div class="out '+l.cls+'">'+l.txt.replace(/</g,'&lt;')+'</div>').join('')+
+  '<div class="psline"><span class="prompt">PS C:\\Users\\vic&gt;&nbsp;</span><input id="psin" autocomplete="off" spellcheck="false"></div></div>'+
+  '<p style="font-size:12px;color:var(--muted);margin-top:10px">💡 Everything here changes the SAME directory as the ADUC console — do a ticket in the GUI, then redo the next one in PowerShell. Knowing both is the Tier 1 → Tier 2 jump.</p></div>';
+  const inp=$('psin');inp.focus();
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){const v=inp.value;psPrint('PS C:\\Users\\vic> '+v,'dim');runPS(v.trim());render();
+      const t=$('psterm');if(t)t.scrollTop=t.scrollHeight;window.scrollTo({top:document.body.scrollHeight});}
+  });
+}
+
+/* ═══════════ KB / DRILLS / REPORT ═══════════ */
+function renderKB(c){
+  c.innerHTML='<div class="listbar"><h1>Knowledge Base</h1><span class="crumb">IT Service Desk · published articles</span></div><div class="kbgrid">'+
+  KB.map(k=>'<div class="kbcard"><span class="kbnum">'+k.n+'</span><h3>'+k.t+'</h3><ul>'+k.pts.map(p=>'<li>'+p+'</li>').join('')+'</ul></div>').join('')+
+  '<div class="kbcard"><span class="kbnum">KB0005</span><h3>ServiceNow Quick Reference</h3><ul><li><b>State model:</b> New → In Progress → On Hold → Resolved → Closed.</li><li><b>Priority</b> = Impact × Urgency (derived).</li><li><b>Work notes</b> = internal. <b>Additional comments</b> = caller-visible.</li><li><b>Incident</b> = broken · <b>Request</b> = wanted · <b>Problem</b> = root cause · <b>Change</b> = controlled modification.</li><li>Resolve requires resolution code + closure notes.</li></ul></div>'+
+  '<div class="kbcard"><span class="kbnum">KB0006</span><h3>AD PowerShell Cheat Sheet</h3><ul>'+
+  '<li><b>Find lockouts:</b> Search-ADAccount -LockedOut</li><li><b>Unlock:</b> Unlock-ADAccount mdeleon</li>'+
+  '<li><b>Inspect:</b> Get-ADUser jbakker -Properties MemberOf</li><li><b>Groups:</b> Add-ADGroupMember SG-UW-Core-Users -Members jbakker</li>'+
+  '<li><b>Offboard:</b> Disable-ADAccount dmalone · Set-ADAccountPassword dmalone -Reset · Move-ADObject dmalone -TargetPath "OU=Disabled-Retention"</li>'+
+  '<li><b>Temp staff:</b> Set-ADUser mrivera-i -AccountExpirationDate 2026-09-04</li>'+
+  '<li><b>New hire:</b> New-ADUser -Name "Tunde Adeyemi" -SamAccountName tadeyemi -Path "OU=Underwriting" -ChangePasswordAtLogon $true</li></ul></div>'+
+  '<div class="kbcard"><span class="kbnum">KB0007</span><h3>ADUC Muscle-Memory Map</h3><ul>'+
+  '<li><b>Unlock / disable / expiration / must-change:</b> user → Properties → <b>Account</b> tab.</li>'+
+  '<li><b>App &amp; share access:</b> user → Properties → <b>Member Of</b> tab.</li>'+
+  '<li><b>Offboarding:</b> right-click user → Disable, then move to a Disabled/Retention OU. Never delete day one.</li>'+
+  '<li><b>New hire:</b> right-click OU → New → User; check "must change password at next logon".</li>'+
+  '<li>Repeat every action in your VirtualBox Server 2022 lab and screenshot it for GitHub.</li></ul></div></div>';
+}
+function renderDrills(c){
+  let html='<div class="listbar"><h1>ServiceNow Drills</h1><span class="crumb">Platform-specific interview questions</span></div><div class="drillwrap">';
+  DRILLS.forEach((d,i)=>{
+    const ans=state.drillAns[i];
+    if(i>0&&state.drillAns[i-1]===undefined&&ans===undefined)return;
+    html+='<div class="panelbox"><div class="stepno">Drill '+(i+1)+' of '+DRILLS.length+'</div><div class="q">'+d.q+'</div>';
+    d.opts.forEach((o,j)=>{let cls='opt',dis=ans!==undefined?'disabled':'';
+      if(ans!==undefined){if(j===d.a)cls+=' right';else if(j===ans)cls+=' wrong';}
+      html+='<button class="'+cls+'" '+dis+' onclick="drillAnswer('+i+','+j+')"><span class="key">'+'ABCD'[j]+'</span>'+o+'</button>';});
+    if(ans!==undefined){const ok=ans===d.a;
+      html+='<div class="feedback '+(ok?'good':'bad')+'"><div class="fb-title">'+(ok?'✔ Correct.':'✖ Not quite — here’s the real answer.')+'</div>'+(ok?d.good:d.bad)+'<div class="ivnote"><b>💬 Interview note:</b> '+d.iv+'</div></div>';}
+    html+='</div>';});
+  const done=state.drillAns.filter(a=>a!==undefined).length;
+  if(done===DRILLS.length){const sc=state.drillFT.filter(Boolean).length;
+    html+='<div class="panelbox"><b>Drills complete: '+sc+'/'+DRILLS.length+' first try.</b> '+(sc>=7?'You can talk ServiceNow like you\'ve used it for a year.':'Reread KB0005, reset and rerun — these cover 90% of Tier 1 ServiceNow questions.')+' <button class="snbtn gray" style="margin-left:10px" onclick="resetDrills()">Reset drills</button></div>';}
+  c.innerHTML=html+'</div>';
+}
+window.drillAnswer=function(i,j){if(state.drillAns[i]!==undefined)return;state.drillAns[i]=j;state.drillFT[i]=(j===DRILLS[i].a);render();};
+window.resetDrills=function(){state.drillAns=[];state.drillFT=[];render();};
+
+function renderReport(c){
+  const res=TICKETS.filter(t=>state.snstate[t.id]==='Resolved').length;
+  const ft=TICKETS.flatMap(t=>state.firstTry[t.id]).filter(v=>v!==undefined);
+  const acc=ft.length?Math.round(100*ft.filter(Boolean).length/ft.length):0;
+  const dDone=state.drillAns.filter(a=>a!==undefined).length,dSc=state.drillFT.filter(Boolean).length;
+  const allObjs=TICKETS.flatMap(t=>(OBJECTIVES[t.id]||[]).filter(o=>!o.info));
+  const objDone=allObjs.filter(o=>o.check()).length;
+  const rows=TICKETS.map(t=>{const f=state.firstTry[t.id],done=state.snstate[t.id]==='Resolved';
+    return'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line2);font-size:12.5px"><span><span style="font-family:var(--mono);color:var(--link);font-weight:700">'+t.id+'</span> &nbsp;'+t.title.slice(0,54)+(t.title.length>54?'…':'')+'</span><b style="font-family:var(--mono)">'+(done?f.filter(Boolean).length+'/'+f.length:stateChip(state.snstate[t.id]))+'</b></div>';}).join('');
+  let verdict=res<TICKETS.length?(TICKETS.length-res)+' incident(s) still open — on a real desk, open P1/P2s never wait.':
+    acc>=85&&!F.violations.length?'Queue cleared, high accuracy, zero security violations — that\'s a hire. Now replicate every AD objective in your VirtualBox Server 2022 lab and screenshot it for GitHub.':
+    F.violations.length?'Queue cleared, but review the security violations below — in a real environment those are career-enders. Rerun and keep your hands off unverified accounts.':
+    'Queue cleared. Rerun the incidents you dropped and say the reasoning out loud like a live interview.';
+  c.innerHTML='<div class="listbar"><h1>Shift Report</h1><span class="crumb">Maplecore Financial · Service Desk · Vic G.</span></div><div class="report">'+
+  '<div class="statgrid"><div class="stat"><b>'+res+'/'+TICKETS.length+'</b><span>Incidents resolved</span></div><div class="stat"><b>'+(ft.length?acc+'%':'–')+'</b><span>First-try accuracy</span></div><div class="stat"><b>'+objDone+'/'+allObjs.length+'</b><span>AD objectives</span></div></div>'+
+  '<div class="statgrid" style="grid-template-columns:repeat(2,1fr)"><div class="stat"><b>'+(dDone?dSc+'/'+DRILLS.length:'–')+'</b><span>SN drills</span></div><div class="stat"><b style="color:'+(F.violations.length?'var(--p1)':'var(--ok)')+'">'+F.violations.length+'</b><span>Security violations</span></div></div>'+
+  (F.violations.length?'<div class="panelbox"><div class="stepno" style="color:var(--p1)">Security review</div>'+F.violations.map(v=>'<div class="violbanner">'+v+'</div>').join('')+'</div>':'')+
+  '<div class="panelbox"><div class="stepno">Per-incident performance</div>'+rows+'</div>'+
+  '<div class="panelbox"><div class="stepno">Supervisor\'s note</div>'+verdict+'</div></div>';
+}
+
+/* ═══ Boot ═══ */
+render();
+setInterval(()=>{if(!state.sel&&state.view==='mylist')render();},1000);
+</script>
+</body>
+</html>
